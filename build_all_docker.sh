@@ -18,3 +18,10 @@ docker build -t legacy-use-target:local -f infra/docker/legacy-use-target/Docker
 
 docker build -t legacy-use-demo-db:local -f infra/docker/legacy-use-demo-db/Dockerfile .
 docker tag legacy-use-demo-db:local legacy-use-core-demo-db:local
+
+# Build Wine target for lightweight Windows app support
+docker build -t legacy-use-wine-target:local -f infra/docker/legacy-use-wine-target/Dockerfile .
+
+# Build Windows target (optional - requires large download and KVM)
+# Uncomment to build full Windows VM target
+# docker build -t legacy-use-windows-target:local -f infra/docker/legacy-use-windows-target/Dockerfile .
