@@ -347,19 +347,9 @@ const JobsList = () => {
                     {job.duration_seconds ? `${Math.round(job.duration_seconds)}s` : '-'}
                   </TableCell>
                   <TableCell>
-                    {job.total_input_tokens || job.total_output_tokens ? (
-                      <>
-                        {job.total_input_tokens + job.total_output_tokens}
-                        {(() => {
-                          const inputCost = (job.total_input_tokens / 1000000) * 3; // $3 per 1M input tokens
-                          const outputCost = (job.total_output_tokens / 1000000) * 15; // $15 per 1M output tokens
-                          const totalCost = inputCost + outputCost;
-                          return ` ($${totalCost.toFixed(3)})`;
-                        })()}
-                      </>
-                    ) : (
-                      '-'
-                    )}
+                    {job.total_input_tokens || job.total_output_tokens
+                      ? job.total_input_tokens + job.total_output_tokens
+                      : '-'}
                   </TableCell>
                   <TableCell>{formatDate(job.created_at)}</TableCell>
                   <TableCell>{formatDate(job.updated_at)}</TableCell>

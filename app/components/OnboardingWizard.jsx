@@ -1,9 +1,6 @@
 import {
-  CheckCircle as CheckCircleIcon,
   Close as CloseIcon,
-  Email as EmailIcon,
   Key as KeyIcon,
-  Rocket as RocketIcon,
 } from '@mui/icons-material';
 import {
   Alert,
@@ -13,12 +10,9 @@ import {
   Container,
   Dialog,
   DialogContent,
-  Divider,
   FormControl,
-  Grid,
   IconButton,
   InputLabel,
-  Link,
   MenuItem,
   Paper,
   Select,
@@ -28,7 +22,6 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import posthog from 'posthog-js';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAiProvider } from '../contexts/AiProviderContext';
@@ -41,17 +34,7 @@ const OnboardingWizard = ({ open, onClose, onComplete }) => {
   const [error, setError] = useState('');
   const [providers, setProviders] = useState([]);
   const [selectedProvider, setSelectedProvider] = useState('');
-  const [signupCompleted, setSignupCompleted] = useState(false);
-  const [activationCode, setActivationCode] = useState('');
-  const [resendTimer, setResendTimer] = useState(0);
   const { refreshProviders } = useAiProvider();
-
-  // Signup form state
-  const [signupData, setSignupData] = useState({
-    email: '',
-    description: '',
-    referralCode: '',
-  });
 
   // Provider configuration state
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -65,29 +48,7 @@ const OnboardingWizard = ({ open, onClose, onComplete }) => {
     region: 'us-central1',
   });
 
-  const steps = ['Welcome', 'Get Started', 'Configure Provider'];
-
-  // Timer effect for resend countdown
-  useEffect(() => {
-    let interval;
-    if (resendTimer > 0) {
-      interval = setInterval(() => {
-        setResendTimer(prev => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [resendTimer]);
-
-  const signupOrResend = async () => {
-    // Start the resend timer (60 seconds)
-    setResendTimer(60);
-
-    const response = await fetch(`${import.meta.env.VITE_LEGACYUSE_PROXY_BASE_URL}/signup`, {
-      method: 'POST',
-      body: JSON.stringify(signupData),
-    });
-    console.log('signup', response);
-  };
+  const steps = ['Welcome', 'Configure Provider'];
 
   // Fetch providers on component mount and reset state
   useEffect(() => {
@@ -96,9 +57,13 @@ const OnboardingWizard = ({ open, onClose, onComplete }) => {
         const providersData = await getProviders();
         setProviders(providersData.providers || []);
 
-        // Set default provider to first available one
+        // Set default provider to Anthropic if available, otherwise first available one
+        const anthropicProvider = providersData.providers?.find(p => p.provider === 'anthropic');
         const availableProvider = providersData.providers?.find(p => p.available);
-        if (availableProvider) {
+        
+        if (anthropicProvider) {
+          setSelectedProvider('anthropic');
+        } else if (availableProvider) {
           setSelectedProvider(availableProvider.provider);
         } else if (providersData.providers?.length > 0) {
           setSelectedProvider(providersData.providers[0].provider);
@@ -111,11 +76,7 @@ const OnboardingWizard = ({ open, onClose, onComplete }) => {
 
     if (open) {
       fetchProviders();
-      // Reset signup state when dialog opens
-      setSignupCompleted(false);
-      setActivationCode('');
       setError('');
-      setResendTimer(0);
     }
   }, [open]);
 
@@ -125,89 +86,6 @@ const OnboardingWizard = ({ open, onClose, onComplete }) => {
 
   const handleBack = () => {
     setActiveStep(prev => prev - 1);
-  };
-
-  const handleSignupSubmit = async () => {
-    if (!signupData.email || !signupData.description) {
-      setError('Please fill in all required fields');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      // Here you would typically make an API call to your signup endpoint
-      // For now, we'll simulate success and move to the next step
-      console.log('Signup data:', signupData);
-
-      await signupOrResend();
-
-      // identify the user
-      posthog.identify(signupData.email, { email: signupData.email });
-      posthog.capture('signup', {
-        email: signupData.email,
-        description: signupData.description,
-        referralCode: signupData.referralCode,
-      });
-
-      // Mark signup as completed to show success message
-      setSignupCompleted(true);
-    } catch (_err) {
-      setError('Failed to process signup. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleActivationSubmit = async () => {
-    if (!activationCode.trim()) {
-      setError('Please enter your activation code');
-      return;
-    }
-
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const isValidUuid = uuidRegex.test(activationCode.trim());
-    if (!isValidUuid) {
-      setError('Please enter a valid activation code');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      // Here you would typically validate the activation code with your API
-      console.log('Activation code:', activationCode);
-
-      // TODO: validate activation code
-
-      // Call backend (server) and setup legacyuse provider with the entered activation code as legacy use cloud api key
-      await updateProviderSettings('legacyuse', {
-        proxy_api_key: activationCode.trim(),
-      });
-
-      // Load targets and redirect to first one
-      try {
-        const targets = await getTargets();
-        if (targets.length > 0) {
-          const firstTarget = targets[0];
-          navigate(`/apis?target=${firstTarget.id}`);
-        }
-      } catch (err) {
-        console.error('Error loading targets:', err);
-      }
-
-      // refresh providers
-      await refreshProviders();
-
-      // Complete the onboarding
-      onComplete();
-    } catch (_err) {
-      setError('Invalid activation code. Please check your email and try again.');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleProviderSetup = async () => {
@@ -247,12 +125,6 @@ const OnboardingWizard = ({ open, onClose, onComplete }) => {
           project_id: vertexCredentials.projectId,
           region: vertexCredentials.region,
         };
-      } else if (selectedProvider === 'legacyuse') {
-        if (!apiKeyInput.trim()) {
-          setError('Please enter your legacy-use API key');
-          return;
-        }
-        credentials.proxy_api_key = apiKeyInput;
       }
 
       // Use the new backend logic to configure the provider
@@ -286,199 +158,20 @@ const OnboardingWizard = ({ open, onClose, onComplete }) => {
       <Typography variant="h5" color="text.secondary" sx={{ mt: 3, mb: 2 }}>
         Automate any legacy application with AI
       </Typography>
-      <Typography variant="body1" color="text.secondary">
+      <Typography variant="body1" color="text.secondary" paragraph>
         legacy-use allows to expose legacy applications with REST-APIs, enabling you to build
         reliable solutions and automate workflows where it was not possible before.
       </Typography>
+      <Typography variant="body1" color="text.secondary" paragraph>
+        To get started, you'll need to configure your AI provider (Anthropic, AWS Bedrock, or Google Vertex).
+      </Typography>
       <Box sx={{ mt: 4 }}>
-        <Button variant="contained" size="large" onClick={handleNext} sx={{ mr: 2 }}>
-          Get Started
+        <Button variant="contained" size="large" onClick={handleNext} startIcon={<KeyIcon />}>
+          Configure AI Provider
         </Button>
       </Box>
     </Box>
   );
-
-  const renderSignupSuccessMessage = () => (
-    <Box sx={{ py: 4, textAlign: 'center' }}>
-      <CheckCircleIcon sx={{ fontSize: 80, color: 'success.main', mb: 2 }} />
-      <Typography variant="h4" component="h2" gutterBottom>
-        Welcome to legacy-use!
-      </Typography>
-      <Typography variant="h6" color="text.secondary" paragraph>
-        Your signup was successful
-      </Typography>
-
-      <Paper elevation={2} sx={{ p: 3, mb: 3, bgcolor: 'success.50' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
-          <EmailIcon sx={{ mr: 1, color: 'success.main' }} />
-          <Typography variant="h6" color="success.main">
-            Check Your Email
-          </Typography>
-        </Box>
-
-        <Typography variant="body1" paragraph>
-          We've sent an email to <strong>{signupData.email}</strong> with your $5 credit activation
-          code and instructions on how to get started.
-        </Typography>
-
-        <Typography variant="body2" color="text.secondary">
-          Don't see the email? Check your spam folder or{' '}
-          <Button
-            variant="text"
-            size="small"
-            onClick={signupOrResend}
-            disabled={loading || resendTimer > 0}
-          >
-            {resendTimer > 0 ? `resend in ${resendTimer}s` : 'resend the email'}
-          </Button>
-          .
-        </Typography>
-      </Paper>
-
-      <Paper elevation={1} sx={{ p: 3, mb: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Enter Activation Code
-        </Typography>
-        <Typography variant="body2" color="text.secondary" paragraph>
-          Enter the activation code from your email to claim your $5 credits and continue.
-        </Typography>
-
-        <TextField
-          fullWidth
-          label="Activation Code"
-          value={activationCode}
-          onChange={e => setActivationCode(e.target.value)}
-          variant="outlined"
-          placeholder="Enter your activation code"
-          sx={{ mb: 2 }}
-          onKeyPress={e => {
-            if (e.key === 'Enter' && !loading && activationCode.trim()) {
-              handleActivationSubmit();
-            }
-          }}
-        />
-
-        <Button
-          fullWidth
-          variant="contained"
-          size="large"
-          onClick={handleActivationSubmit}
-          disabled={loading || !activationCode.trim()}
-        >
-          {loading ? 'Verifying...' : 'Activate Credits & Continue'}
-        </Button>
-      </Paper>
-    </Box>
-  );
-
-  const renderSignupStep = () => {
-    // Show success message if signup is completed
-    if (signupCompleted) {
-      return renderSignupSuccessMessage();
-    }
-
-    return (
-      <Box sx={{ py: 2 }}>
-        <Typography variant="h4" component="h2" gutterBottom align="center">
-          Get Started with $5 Credits for free
-        </Typography>
-        <Typography variant="body1" color="text.secondary" paragraph align="center" sx={{ mb: 4 }}>
-          Sign up with your email to receive $5 in credits for free to explore legacy-use's
-          automation capabilities.
-        </Typography>
-
-        {/* Main signup section */}
-        <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <RocketIcon sx={{ mr: 1, color: 'primary.main' }} />
-            <Typography variant="h6">Signup for free</Typography>
-          </Box>
-
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Email Address"
-                type="email"
-                required
-                value={signupData.email}
-                onChange={e => setSignupData(prev => ({ ...prev, email: e.target.value }))}
-                variant="outlined"
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="What software do you want to automate?"
-                multiline
-                rows={3}
-                required
-                value={signupData.description}
-                onChange={e => setSignupData(prev => ({ ...prev, description: e.target.value }))}
-                variant="outlined"
-                placeholder="e.g., DATEV, SAP, Lexware, Navision, ..."
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Referral Code (Optional)"
-                value={signupData.referralCode}
-                onChange={e => setSignupData(prev => ({ ...prev, referralCode: e.target.value }))}
-                variant="outlined"
-                placeholder="Enter referral code if you have one"
-              />
-            </Grid>
-          </Grid>
-
-          <Button
-            fullWidth
-            variant="contained"
-            size="large"
-            onClick={handleSignupSubmit}
-            disabled={loading}
-            sx={{ mt: 3 }}
-          >
-            {loading ? 'Processing...' : 'Get $5 Credits for free'}
-          </Button>
-        </Paper>
-
-        {/* Activation key option */}
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          align="center"
-          sx={{ mt: 1, display: 'block', mb: 1 }}
-        >
-          Already have an activation key?{' '}
-          <Link
-            href="#"
-            onClick={e => {
-              e.preventDefault();
-              setSignupCompleted(true);
-            }}
-          >
-            Enter it here
-          </Link>
-        </Typography>
-
-        {/* Divider */}
-        <Divider sx={{ my: 3 }}>
-          <Typography variant="body2" color="text.secondary">
-            OR
-          </Typography>
-        </Divider>
-
-        {/* Secondary option */}
-        <Typography variant="body2" color="text.secondary" paragraph align="center">
-          Already have API keys? Skip the credits and configure your own provider credentials.
-        </Typography>
-        <Button variant="outlined" onClick={handleNext} startIcon={<KeyIcon />} fullWidth>
-          Configure Custom Provider
-        </Button>
-      </Box>
-    );
-  };
 
   const renderProviderStep = () => (
     <Box sx={{ py: 2 }}>
@@ -630,8 +323,6 @@ const OnboardingWizard = ({ open, onClose, onComplete }) => {
       case 0:
         return renderWelcomeStep();
       case 1:
-        return renderSignupStep();
-      case 2:
         return renderProviderStep();
       default:
         return null;
