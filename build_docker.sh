@@ -55,7 +55,11 @@ build_image "linux-machine" "infra/docker/linux-machine/Dockerfile" &
 
 # Wine build (now optimized)
 echo "🍷 Starting Wine build..."
-build_image "legacy-use-wine-target" "infra/docker/legacy-use-wine-target/Dockerfile"
+build_image "legacy-use-wine-target" "infra/docker/legacy-use-wine-target/Dockerfile" &
+
+# Android build
+echo "🤖 Starting Android build..."
+build_image "legacy-use-android-target" "infra/docker/legacy-use-android-target/Dockerfile"
 
 # Wait for remaining builds
 wait
