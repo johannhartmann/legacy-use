@@ -2,8 +2,13 @@
 
 set -e
 
-# Default to debug mode if not specified
-export LEGACY_USE_DEBUG=${LEGACY_USE_DEBUG:-0}
+# Default to debug mode for development
+# Use --production or -p flag for production mode
+if [[ "$1" == "--production" ]] || [[ "$1" == "-p" ]]; then
+    export LEGACY_USE_DEBUG=0
+else
+    export LEGACY_USE_DEBUG=${LEGACY_USE_DEBUG:-1}
+fi
 
 # Default SQLITE_PATH if not specified
 export SQLITE_PATH=${SQLITE_PATH:-$(pwd)/server.db}
