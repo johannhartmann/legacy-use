@@ -21,6 +21,14 @@ wineTarget:
     pullPolicy: Always
     tag: main
 
+# Linux Target Configuration
+linuxTarget:
+  enabled: false  # Set to true to enable Linux target
+  image:
+    repository: ghcr.io/johannhartmann/legacy-use-linux-machine
+    pullPolicy: Always
+    tag: main
+
 # Update ingress for your production domain
 ingress:
   enabled: true

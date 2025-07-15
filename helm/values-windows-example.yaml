@@ -1,0 +1,72 @@
+# Example values for deploying Legacy Use with Windows target
+# Usage: helm install legacy-use . -f values-production.yaml -f values-windows-example.yaml
+
+# Enable Windows target
+windowsTarget:
+  enabled: true
+  
+  # Windows configuration
+  windowsVersion: "11"  # Options: 11, 10, 2022, 2019
+  diskSize: "64G"
+  ramSize: "8G"
+  cpuCores: "4"
+  
+  # Windows credentials (CHANGE THESE!)
+  username: "LegacyAdmin"
+  password: "SecurePassword123!"
+  
+  # Storage size for Windows
+  storageSize: "100Gi"
+  
+  # Resource allocation
+  resources:
+    limits:
+      cpu: 4
+      memory: 8Gi
+    requests:
+      cpu: 2
+      memory: 4Gi
+  
+  # Node selection - uncomment and modify if you need specific nodes with KVM
+  # nodeSelector:
+  #   kvm-enabled: "true"
+  #   kubernetes.io/hostname: node-with-kvm
+  
+  # Service configuration
+  service:
+    type: ClusterIP  # Change to LoadBalancer or NodePort if external access needed
+  
+  # Security context (required for KVM access)
+  podSecurityContext:
+    privileged: true
+  
+  securityContext:
+    privileged: true
+    capabilities:
+      add:
+        - NET_ADMIN
+        - SYS_ADMIN
+
+# Optionally expose Windows services via ingress
+# ingress:
+#   enabled: true
+#   className: nginx
+#   annotations:
+#     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+#   hosts:
+#     - host: windows.legacy-use.example.com
+#       paths:
+#         - path: /
+#           pathType: Prefix
+#           backend:
+#             service:
+#               name: windows-web
+#               port:
+#                 number: 8006
+#         - path: /vnc
+#           pathType: Prefix
+#           backend:
+#             service:
+#               name: windows-novnc
+#               port:
+#                 number: 6080

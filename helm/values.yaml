@@ -195,3 +195,33 @@ wineTarget:
   tolerations: []
   
   affinity: {}
+
+# Linux Target Configuration (Example Linux machine)
+linuxTarget:
+  enabled: false
+  replicas: 1
+  image:
+    repository: linux-machine
+    pullPolicy: IfNotPresent
+    tag: "local"
+  
+  service:
+    type: ClusterIP
+  
+  resources:
+    limits:
+      cpu: 1
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  podSecurityContext: {}
+  
+  securityContext: {}
+  
+  nodeSelector: {}
+  
+  tolerations: []
+  
+  affinity: {}

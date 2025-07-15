@@ -1,0 +1,38 @@
+# Linux Target Configuration for legacy-use
+# Usage: helm install legacy-use . -f values-production.yaml -f values-linux.yaml
+
+# Enable Linux target
+linuxTarget:
+  enabled: true
+  replicas: 1
+  
+  # Image configuration
+  image:
+    repository: ghcr.io/johannhartmann/legacy-use-linux-machine
+    pullPolicy: Always
+    tag: main
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+  
+  # Resource allocation
+  resources:
+    limits:
+      cpu: 1
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Security context
+  podSecurityContext: {}
+  
+  securityContext: {}
+  
+  # Node placement
+  nodeSelector: {}
+  
+  tolerations: []
+  
+  affinity: {}
