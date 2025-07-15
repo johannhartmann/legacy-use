@@ -1,0 +1,44 @@
+{{- if and .Values.wineTarget.enabled .Values.wineTarget.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-wine-target
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: wine-target
+  {{- with .Values.wineTarget.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.wineTarget.ingress.className }}
+  ingressClassName: {{ .Values.wineTarget.ingress.className }}
+  {{- end }}
+  {{- if .Values.wineTarget.ingress.tls }}
+  tls:
+    {{- range .Values.wineTarget.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.wineTarget.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- if .pathType }}
+            pathType: {{ .pathType }}
+            {{- end }}
+            backend:
+              service:
+                name: {{ include "legacy-use.fullname" $ }}-wine-target
+                port:
+                  number: {{ .backend.service.port.number }}
+          {{- end }}
+    {{- end }}
+{{- end }}

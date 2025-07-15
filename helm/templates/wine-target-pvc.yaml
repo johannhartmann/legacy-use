@@ -1,0 +1,35 @@
+{{- if and .Values.wineTarget.enabled .Values.wineTarget.persistence.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-wine-data
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: wine-target
+spec:
+  accessModes:
+    - {{ .Values.wineTarget.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.wineTarget.persistence.size }}
+  {{- if .Values.wineTarget.persistence.storageClass }}
+  storageClassName: {{ .Values.wineTarget.persistence.storageClass }}
+  {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-wine-apps
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: wine-target
+spec:
+  accessModes:
+    - {{ .Values.wineTarget.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.wineTarget.persistence.size }}
+  {{- if .Values.wineTarget.persistence.storageClass }}
+  storageClassName: {{ .Values.wineTarget.persistence.storageClass }}
+  {{- end }}
+{{- end }}
