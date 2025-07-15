@@ -13,6 +13,14 @@ frontend:
     pullPolicy: Always
     tag: main  # This will be updated by CI/CD
 
+# Wine Target Configuration
+wineTarget:
+  enabled: false  # Set to true to enable Wine container
+  image:
+    repository: ghcr.io/johannhartmann/legacy-use-wine-target
+    pullPolicy: Always
+    tag: main
+
 # Update ingress for your production domain
 ingress:
   enabled: true

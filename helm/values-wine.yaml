@@ -1,0 +1,74 @@
+# Wine Target Configuration for legacy-use
+# Usage: helm install legacy-use . -f values-production.yaml -f values-wine.yaml
+
+# Enable Wine target
+wineTarget:
+  enabled: true
+  replicas: 1
+  
+  # Wine configuration
+  wineArch: "win64"  # win32 or win64
+  
+  # Image configuration
+  image:
+    repository: ghcr.io/johannhartmann/legacy-use-wine-target
+    pullPolicy: Always
+    tag: main
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    annotations: {}
+  
+  # Persistence
+  persistence:
+    enabled: true
+    storageClass: ""  # Use default storage class
+    accessMode: ReadWriteOnce
+    size: 10Gi
+  
+  # Resource allocation
+  resources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Security context
+  podSecurityContext: {}
+  
+  securityContext: {}
+  
+  # Node placement
+  nodeSelector: {}
+    # Example: wine-enabled: "true"
+  
+  tolerations: []
+  
+  affinity: {}
+  
+  # Optional: expose Wine VNC via ingress
+  ingress:
+    enabled: false
+    className: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+      nginx.ingress.kubernetes.io/configuration-snippet: |
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    hosts:
+      - host: wine.legacy-use.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wine-novnc
+                port:
+                  number: 6080
+    tls:
+      - secretName: wine-tls
+        hosts:
+          - wine.legacy-use.example.com
