@@ -1,5 +1,5 @@
 # Multi-stage build for frontend optimization
-FROM node:20-slim as builder
+FROM node:20-slim AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
