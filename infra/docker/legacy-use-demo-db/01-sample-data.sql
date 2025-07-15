@@ -182,6 +182,23 @@ INSERT INTO targets (
     '',
     '',
     ''
+),
+(
+    'a8c3d5e2-7b61-4f89-92a4-1e5c8d9f3b27',
+    'Android Emulator',
+    'vnc',
+    'android-target',
+    '5900',
+    '',
+    '',
+    '1080',
+    '2340',
+    NOW(),
+    NOW(),
+    false,
+    '',
+    '',
+    ''
 )
 ON CONFLICT (id) DO NOTHING;
 
