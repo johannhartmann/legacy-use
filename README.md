@@ -67,12 +67,15 @@ cp .env.template .env
 uv run python generate_api_key.py
 
 # 4. Build and start all services
-./build_all_docker.sh
+./build_docker.sh
 
-# Option A: Docker Compose (recommended - includes Wine container)
-LEGACY_USE_DEBUG=1 ./start_docker_compose.sh
+# Option A: Docker Compose (recommended - includes all target containers)
+./start_docker_compose.sh  # Runs in debug mode by default
 
-# Option B: Individual containers (original)
+# Option B: Production mode
+./start_docker_compose.sh --production
+
+# Option C: Individual containers (legacy)
 LEGACY_USE_DEBUG=1 ./start_docker.sh
 ```
 
@@ -99,37 +102,34 @@ Once the setup completes:
 🎉 **You're all set!** The complete setup usually takes 2-5 minutes depending on your internet connection.
 
 **🚀 Why Docker Compose is Recommended:**
-- Wine container starts automatically with the main app
-- All services networked together (use `wine-target` as host)
-- Easier development with hot reloading
+- All target containers start automatically (Wine, Android, Linux)
+- Services networked together with DNS resolution
+- Hot reloading enabled by default for development
 - One command to start/stop everything
-- Access Wine immediately at http://localhost:6080/vnc.html
+- Pre-configured targets appear in database automatically
+- Access targets immediately:
+  - Wine: http://localhost:6080/vnc.html
+  - Android: http://localhost:6082/vnc.html  
+  - Linux: http://localhost:6081/vnc.html
 
-### Wine Container Support (Optional)
+### Target Container Support
 
-For lightweight Windows application automation, legacy-use includes a Wine container:
+Legacy-use includes several pre-configured target containers:
+
+#### Wine Container (Windows Apps)
+For lightweight Windows application automation:
 
 ```bash
-# Option A: Integrated with Docker Compose (recommended)
-LEGACY_USE_DEBUG=1 ./start_docker_compose.sh
+# Integrated with Docker Compose (recommended)
+./start_docker_compose.sh
 # Wine container starts automatically
-
-# Option B: Standalone Wine container
-cd infra/docker/legacy-use-wine-target
-docker-compose up -d
 
 # Access via web browser
 open http://localhost:6080/vnc.html
 # Password: wine
 ```
 
-**Benefits of Wine Container:**
-- ✅ No Windows license required
-- ✅ Lightweight (2GB vs 64GB for full Windows)
-- ✅ Fast startup (seconds vs minutes)
-- ✅ Good compatibility with many Windows applications
-
-**Create Wine Target in legacy-use:**
+**Wine Target Configuration:**
 ```json
 {
   "name": "Wine Applications",
@@ -140,15 +140,53 @@ open http://localhost:6080/vnc.html
 }
 ```
 
-**Note**: Use `wine-target` as host when using Docker Compose, or `localhost` when running standalone.
+#### Android Emulator
+For Android mobile app automation:
 
-See [Wine container documentation](infra/docker/legacy-use-wine-target/README.md) for more details.
+```bash
+# Access via web browser
+open http://localhost:6082/vnc.html
+
+# Connect via ADB for debugging
+adb connect localhost:5555
+```
+
+**Android Target Configuration:**
+```json
+{
+  "name": "Android Emulator",
+  "type": "vnc",
+  "host": "android-target",
+  "port": 5900,
+  "password": ""
+}
+```
+
+#### Linux Desktop (GnuCash Demo)
+Pre-configured with GnuCash for testing:
+
+```bash
+# Access via web browser
+open http://localhost:6081/vnc.html
+# Password: password123
+```
+
+**Target Benefits Comparison:**
+| Target | Use Case | Resources | Startup Time |
+|--------|----------|-----------|--------------|
+| Wine | Windows desktop apps | ~2GB RAM | 30 seconds |
+| Android | Mobile apps | ~4GB RAM | 2-3 minutes |
+| Linux | Linux desktop apps | ~1GB RAM | 20 seconds |
+| Windows VM | Full Windows | ~8GB RAM | 10+ minutes |
+
+**Note**: All targets are pre-configured in the demo database and will appear automatically when using Docker Compose.
 
 ### Troubleshooting
 
 **Docker not starting?**
 - Ensure Docker Desktop is running
-- Check if ports 8077 and 8088 are available: `lsof -i :8077` and `lsof -i :8088`
+- Check if required ports are available: `lsof -i :8088` (main app), `lsof -i :5555` (Android ADB)
+- Android container requires ~7GB to download on first run
 
 **Build failing?**
 - Ensure you have sufficient disk space (~2GB)
