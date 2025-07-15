@@ -16,9 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure proper container logging - all logs should go to stdout/stderr
-# This ensures compatibility with Kubernetes, Docker logs, and centralized logging
-COPY infra/docker/legacy-use-android-target/supervisor-logging.conf /etc/supervisor/conf.d/logging-override.conf
+# Fix log_web_shared service and configure proper container logging
+# The base image uses custom supervisor configs in /home/androidusr/docker-android/mixins/configs/process/
+# We need to override the specific config file that defines log_web_shared
+COPY infra/docker/legacy-use-android-target/supervisord-base-override.conf /home/androidusr/docker-android/mixins/configs/process/supervisord-base.conf
 
 # Create a directory for app storage
 RUN mkdir -p /home/androidusr/apps && \
