@@ -13,14 +13,12 @@ class APIProvider(StrEnum):
     ANTHROPIC = 'anthropic'
     BEDROCK = 'bedrock'
     VERTEX = 'vertex'
-    LEGACYUSE_PROXY = 'legacyuse'
 
 
 PROVIDER_TO_DEFAULT_MODEL_NAME: dict[APIProvider, str] = {
     APIProvider.ANTHROPIC: 'claude-sonnet-4-20250514',
     APIProvider.BEDROCK: 'eu.anthropic.claude-sonnet-4-20250514-v1:0',
     APIProvider.VERTEX: 'claude-sonnet-4@20250514',
-    APIProvider.LEGACYUSE_PROXY: 'legacy-use-sonnet-4',  # model selection is handled server side
 }
 
 

@@ -32,8 +32,6 @@ class Settings(BaseSettings):
     VERTEX_REGION: str | None = None
     VERTEX_PROJECT_ID: str | None = None
 
-    LEGACYUSE_PROXY_BASE_URL: str = 'https://api.legacy-use.com/'
-    LEGACYUSE_PROXY_API_KEY: str | None = None
 
     ENVIRONMENT: str = 'development'
     API_SENTRY_DSN: str | None = None

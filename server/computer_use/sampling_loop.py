@@ -27,7 +27,6 @@ from anthropic.types.beta import (
     BetaTextBlockParam,
 )
 
-from server.computer_use.client import LegacyUseClient
 from server.computer_use.config import (
     PROMPT_CACHING_BETA_FLAG,
     APIProvider,
@@ -193,8 +192,6 @@ async def sampling_loop(
             # Use AsyncAnthropicBedrock instead of AnthropicBedrock
             client = AsyncAnthropicBedrock(**bedrock_kwargs)
             logger.info(f'Using AsyncAnthropicBedrock client with region: {aws_region}')
-        elif provider == APIProvider.LEGACYUSE_PROXY:
-            client = LegacyUseClient(api_key=settings.LEGACYUSE_PROXY_API_KEY)
         if enable_prompt_caching:
             betas.append(PROMPT_CACHING_BETA_FLAG)
             _inject_prompt_caching(
@@ -245,14 +242,7 @@ async def sampling_loop(
             )
 
         except (APIStatusError, APIResponseValidationError) as e:
-            if e.response.status_code == 403 and 'API Credits Exceeded' in str(e):
-                logger.error(f'Job {job_id}: API Credits Exceeded')
-                return {
-                    'success': False,
-                    'error': 'API Credits Exceeded',
-                    'error_description': str(e),
-                }, exchanges
-            # For other API errors, handle as before
+            # For API errors, handle as before
             if api_response_callback:
                 api_response_callback(e.request, e.response, e)
             logger.error(f'Job {job_id}: API call failed with error: {e.message}')

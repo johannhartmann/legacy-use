@@ -189,7 +189,6 @@ class APIGatewayCore:
                 if result.get('error') in [
                     'Target Health Check Failed',
                     'UI Mismatch Detected',
-                    'API Credits Exceeded',
                 ]:
                     final_status = JobStatus.PAUSED
                     logger.info(f'Job {job_id} paused due to: {result.get("error")}')
