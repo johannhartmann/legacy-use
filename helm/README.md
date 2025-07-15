@@ -156,6 +156,76 @@ kubectl port-forward -n legacy-use deployment/legacy-use-linux-target 6080:6080
 }
 ```
 
+## Android Target (Mobile App Automation)
+
+The Android target provides an Android emulator for mobile app automation:
+
+### Enable Android Target
+
+```bash
+helm install legacy-use . -n legacy-use --create-namespace \
+  -f values-production.yaml \
+  -f values-android.yaml
+```
+
+### Access Android Target
+
+```bash
+# ADB access for debugging
+kubectl port-forward -n legacy-use deployment/legacy-use-android-target 5555:5555
+adb connect localhost:5555
+
+# VNC access
+kubectl port-forward -n legacy-use deployment/legacy-use-android-target 5900:5900
+
+# noVNC web access
+kubectl port-forward -n legacy-use deployment/legacy-use-android-target 6080:6080
+# Access at http://localhost:6080/vnc.html
+```
+
+### Create Android Target in Legacy Use
+
+```json
+{
+  "name": "Android Emulator",
+  "type": "vnc",
+  "host": "legacy-use-android-target",
+  "port": 5900,
+  "width": 1080,
+  "height": 2340
+}
+```
+
+### Installing Android Apps
+
+```bash
+# 1. Copy APK to Android container
+kubectl cp myapp.apk legacy-use/legacy-use-android-target:/home/androidusr/apps/
+
+# 2. Install via ADB
+kubectl port-forward -n legacy-use deployment/legacy-use-android-target 5555:5555
+adb connect localhost:5555
+adb install /home/androidusr/apps/myapp.apk
+
+# 3. Or access Android desktop via web browser
+kubectl port-forward -n legacy-use deployment/legacy-use-android-target 6080:6080
+# Open http://localhost:6080/vnc.html
+```
+
+### Android vs Other Targets Comparison
+
+| Feature | Android Emulator | Wine Container | Windows VM | Linux Machine |
+|---------|-----------------|----------------|------------|---------------|
+| Resource Usage | ~4GB RAM, 20GB disk | ~2GB RAM, 10GB disk | ~8GB RAM, 64GB disk | ~1GB RAM, 5GB disk |
+| Startup Time | 2-3 minutes | 30 seconds | 10-15 minutes | 20 seconds |
+| Use Case | Mobile apps | Windows apps | Full Windows | Linux apps |
+| License | Free | Free | Windows license | Free |
+
+**Use Android when:** You need to automate Android mobile applications
+**Use Wine when:** You need lightweight Windows desktop app support
+**Use Windows VM when:** You need full Windows compatibility
+**Use Linux when:** You need to automate Linux desktop applications
+
 ## Windows Target Access Methods (Full VM)
 
 The Windows target provides multiple ways to access the Windows desktop:
