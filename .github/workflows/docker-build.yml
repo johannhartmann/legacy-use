@@ -29,6 +29,9 @@ jobs:
           - dockerfile: ./infra/docker/legacy-use-frontend/Dockerfile
             image: frontend
             context: .
+          - dockerfile: ./infra/docker/legacy-use-wine-target/Dockerfile
+            image: wine-target
+            context: .
     
     steps:
       - name: Checkout repository
