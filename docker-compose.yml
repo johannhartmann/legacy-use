@@ -14,10 +14,7 @@ services:
       - "5173:5173"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${HOME}/.anthropic:/home/legacy-use-mgmt/.anthropic
-      - ${HOME}/.config/gcloud/application_default_credentials.json:/home/legacy-use-mgmt/.config/gcloud/application_default_credentials.json
-      - ./.env.local:/home/legacy-use-mgmt/.env.local
-      # Development mode volumes
+      # Development mode volumes (only when LEGACY_USE_DEBUG=1)
       - ./server:/home/legacy-use-mgmt/server/
       - ./app:/home/legacy-use-mgmt/app/
     depends_on:
