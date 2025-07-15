@@ -31,7 +31,7 @@ RUN x11vnc -storepasswd wine /home/wineuser/.vnc/passwd && \
     chown wineuser:wineuser /home/wineuser/.vnc/passwd
 
 # Simple supervisor config
-RUN printf '[supervisord]\nnodaemon=true\nuser=root\n\n[program:xvfb]\ncommand=/usr/bin/Xvfb :1 -screen 0 1920x1080x24\nautorestart=true\nuser=root\npriority=100\n\n[program:x11vnc]\ncommand=/usr/bin/x11vnc -display :1 -usepw -forever -shared -rfbport 5900 -rfbauth /home/wineuser/.vnc/passwd\nautorestart=true\nuser=wineuser\npriority=200\n\n[program:novnc]\ncommand=/usr/share/novnc/utils/launch.sh --vnc localhost:5900 --listen 6080\nautorestart=true\nuser=root\npriority=300\n\n[program:fluxbox]\ncommand=/usr/bin/fluxbox -display :1\nautorestart=true\nuser=wineuser\nenvironment=HOME="/home/wineuser",DISPLAY=":1"\npriority=400\n' > /etc/supervisor/conf.d/supervisord.conf
+RUN printf '[supervisord]\nnodaemon=true\nuser=root\n\n[program:xvfb]\ncommand=/usr/bin/Xvfb :1 -screen 0 1920x1080x24\nautorestart=true\nuser=root\npriority=100\n\n[program:x11vnc]\ncommand=/usr/bin/x11vnc -display :1 -usepw -forever -shared -rfbport 5900 -rfbauth /home/wineuser/.vnc/passwd -noshm\nautorestart=true\nuser=wineuser\npriority=200\n\n[program:novnc]\ncommand=/usr/share/novnc/utils/launch.sh --vnc localhost:5900 --listen 6080\nautorestart=true\nuser=root\npriority=300\n\n[program:fluxbox]\ncommand=/usr/bin/fluxbox -display :1\nautorestart=true\nuser=wineuser\nenvironment=HOME="/home/wineuser",DISPLAY=":1"\npriority=400\n' > /etc/supervisor/conf.d/supervisord.conf
 
 # Setup Wine environment
 USER wineuser
