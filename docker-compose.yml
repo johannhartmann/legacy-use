@@ -63,11 +63,12 @@ services:
   linux-machine:
     image: linux-machine:local
     container_name: legacy-use-linux-machine
+    ports:
+      - "5901:5900"  # VNC (different port to avoid Wine conflict)
+      - "6081:6080"  # noVNC (different port to avoid Wine conflict)
     restart: unless-stopped
     networks:
       - legacy-use-network
-    profiles:
-      - linux-targets
 
   # Optional: Windows VM target (requires KVM)
   # Uncomment if you want to use full Windows VM
