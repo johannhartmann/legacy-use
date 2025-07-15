@@ -1,0 +1,35 @@
+{{- if and .Values.androidTarget.enabled .Values.androidTarget.persistence.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-android-data
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: android-target
+spec:
+  accessModes:
+    - {{ .Values.androidTarget.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.androidTarget.persistence.size }}
+  {{- if .Values.androidTarget.persistence.storageClass }}
+  storageClassName: {{ .Values.androidTarget.persistence.storageClass }}
+  {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-android-apps
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: android-target
+spec:
+  accessModes:
+    - {{ .Values.androidTarget.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.androidTarget.persistence.size }}
+  {{- if .Values.androidTarget.persistence.storageClass }}
+  storageClassName: {{ .Values.androidTarget.persistence.storageClass }}
+  {{- end }}
+{{- end }}
