@@ -68,6 +68,25 @@ services:
     networks:
       - legacy-use-network
 
+  # Android emulator target
+  android-target:
+    image: legacy-use-android-target:local
+    container_name: legacy-use-android-target
+    privileged: true
+    environment:
+      - EMULATOR_DEVICE=Samsung Galaxy S10
+      - WEB_VNC=true
+    ports:
+      - "5555:5555"  # ADB
+      - "5902:5900"  # VNC (different port to avoid conflicts)
+      - "6082:6080"  # noVNC (different port to avoid conflicts)
+    volumes:
+      - android_data:/home/androidusr/.android
+      - android_apps:/home/androidusr/apps
+    restart: unless-stopped
+    networks:
+      - legacy-use-network
+
   # Optional: Windows VM target (requires KVM)
   # Uncomment if you want to use full Windows VM
   # windows-target:
@@ -97,6 +116,8 @@ volumes:
   demo_db_data:
   wine_data:
   wine_apps:
+  android_data:
+  android_apps:
   # windows_data:
 
 networks:
