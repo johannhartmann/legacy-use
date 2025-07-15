@@ -80,14 +80,6 @@ const JobStatusCard = ({
       : 'N/A';
     const isRunning = normalizedJobStatus === 'running';
 
-    // Calculate costs if token usage is available
-    let costInfo = null;
-    if (tokenUsage) {
-      const inputCost = (tokenUsage.input / 1000000) * 3; // $3 per 1M input tokens
-      const outputCost = (tokenUsage.output / 1000000) * 15; // $15 per 1M output tokens
-      const totalCost = inputCost + outputCost;
-      costInfo = `($${totalCost.toFixed(3)})`;
-    }
 
     return (
       <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -101,7 +93,7 @@ const JobStatusCard = ({
           •
         </Typography>
         <Typography variant="body2" color="textSecondary">
-          Tokens: {tokens} {costInfo}
+          Tokens: {tokens}
         </Typography>
       </Box>
     );

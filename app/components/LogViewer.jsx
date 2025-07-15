@@ -294,9 +294,6 @@ const LogViewer = ({ logs }) => {
             return log.content;
           }
         }
-        if (log.content?.includes('API Credits Exceeded')) {
-          return "You've run out of credits...\nBook a demo with us -> https://legacy-use.com/";
-        }
         if (typeof log.content === 'string') {
           return log.content;
         }
