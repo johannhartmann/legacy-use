@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  wine-target:
+    build: .
+    container_name: legacy-use-wine-target
+    environment:
+      - DISPLAY=:1
+      - WINEARCH=win64
+      - WINEPREFIX=/home/wineuser/.wine
+    ports:
+      - "5900:5900"    # VNC
+      - "6080:6080"    # noVNC
+    volumes:
+      - wine_data:/home/wineuser/.wine
+      - wine_apps:/home/wineuser/apps
+    restart: unless-stopped
+    networks:
+      - legacy-use-network
+
+volumes:
+  wine_data:
+  wine_apps:
+
+networks:
+  legacy-use-network:
+    driver: bridge
