@@ -16,6 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
+# Configure proper container logging - all logs should go to stdout/stderr
+# This ensures compatibility with Kubernetes, Docker logs, and centralized logging
+COPY infra/docker/legacy-use-android-target/supervisor-logging.conf /etc/supervisor/conf.d/logging-override.conf
+
 # Create a directory for app storage
 RUN mkdir -p /home/androidusr/apps && \
     chown -R androidusr:androidusr /home/androidusr/apps
