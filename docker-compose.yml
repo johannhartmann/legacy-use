@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Main legacy-use management service
   legacy-use-mgmt:
@@ -7,6 +5,7 @@ services:
     container_name: legacy-use-mgmt
     environment:
       - LEGACY_USE_DEBUG=${LEGACY_USE_DEBUG:-0}
+      - DATABASE_URL=postgresql://postgres:postgres@demo-db:5432/legacy_use_demo
     env_file:
       - .env
       - .env.local
@@ -17,7 +16,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${HOME}/.anthropic:/home/legacy-use-mgmt/.anthropic
       - ${HOME}/.config/gcloud/application_default_credentials.json:/home/legacy-use-mgmt/.config/gcloud/application_default_credentials.json
-      - ${SQLITE_PATH:-./server.db}:/home/legacy-use-mgmt/server/server.db
       - ./.env.local:/home/legacy-use-mgmt/.env.local
       # Development mode volumes
       - ./server:/home/legacy-use-mgmt/server/
