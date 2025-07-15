@@ -45,10 +45,10 @@ fi
 # Start services
 if [ "$LEGACY_USE_DEBUG" = "1" ]; then
     echo "🔧 Starting in DEBUG mode with hot reloading..."
-    docker-compose up --remove-orphans
+    docker compose up --remove-orphans
 else
     echo "🚀 Starting in PRODUCTION mode..."
-    docker-compose up -d --remove-orphans
+    docker compose up -d --remove-orphans
 fi
 
 echo ""
@@ -64,7 +64,7 @@ echo "   - Linux machine: http://localhost:6081/vnc.html"
 echo "   - Windows VM: uncomment windows-target in docker-compose.yml"
 echo ""
 echo "📝 To stop services:"
-echo "   docker-compose down"
+echo "   docker compose down"
 echo ""
 echo "📊 To view logs:"
-echo "   docker-compose logs -f [service-name]"
+echo "   docker compose logs -f [service-name]"

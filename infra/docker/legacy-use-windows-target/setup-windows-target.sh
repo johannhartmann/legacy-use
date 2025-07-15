@@ -37,7 +37,7 @@ EOF
 
 echo ""
 echo "Starting Windows container..."
-docker-compose up -d windows-target
+docker compose up -d windows-target
 
 echo ""
 echo "Windows is being installed. This may take 10-15 minutes."
@@ -51,4 +51,4 @@ echo "  Username: $USERNAME"
 echo "  Password: $PASSWORD"
 echo ""
 echo "To stop the Windows container:"
-echo "  docker-compose down"
+echo "  docker compose down"
