@@ -1,0 +1,24 @@
+{{- if .Values.wineTarget.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-wine-target
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: wine-target
+spec:
+  type: {{ .Values.wineTarget.service.type }}
+  ports:
+    - port: 5900
+      targetPort: vnc
+      protocol: TCP
+      name: vnc
+    - port: 6080
+      targetPort: novnc
+      protocol: TCP
+      name: novnc
+  selector:
+    app.kubernetes.io/name: {{ include "legacy-use.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: wine-target
+{{- end }}
