@@ -114,16 +114,6 @@ async def get_providers():
                 ),
             },
         },
-        APIProvider.LEGACYUSE_PROXY: {
-            'name': 'legacy-use Cloud',
-            'description': 'Anthropic Claude models via legacy-use Cloud',
-            'available': bool(getattr(settings, 'LEGACYUSE_PROXY_API_KEY', None)),
-            'credentials': {
-                'proxy_api_key': obscure_api_key(
-                    getattr(settings, 'LEGACYUSE_PROXY_API_KEY', None)
-                ),
-            },
-        },
     }
 
     # Build provider list
@@ -186,13 +176,6 @@ async def update_provider_settings(request: UpdateProviderRequest):
         settings.VERTEX_PROJECT_ID = request.credentials['project_id']
         settings.VERTEX_REGION = request.credentials['region']
 
-    elif provider_enum == APIProvider.LEGACYUSE_PROXY:
-        if 'proxy_api_key' not in request.credentials:
-            raise HTTPException(
-                status_code=400,
-                detail='API key is required for legacy-use Cloud provider',
-            )
-        settings.LEGACYUSE_PROXY_API_KEY = request.credentials['proxy_api_key']
 
     # Set as active provider
     settings.API_PROVIDER = provider_enum.value
