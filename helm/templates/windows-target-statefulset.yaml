@@ -1,0 +1,100 @@
+{{- if .Values.windowsTarget.enabled -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-windows-target
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: windows-target
+spec:
+  serviceName: {{ include "legacy-use.fullname" . }}-windows-target
+  replicas: {{ .Values.windowsTarget.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "legacy-use.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: windows-target
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "legacy-use.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: windows-target
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "legacy-use.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.windowsTarget.podSecurityContext | nindent 8 }}
+      containers:
+        - name: windows
+          securityContext:
+            {{- toYaml .Values.windowsTarget.securityContext | nindent 12 }}
+          image: "{{ .Values.windowsTarget.image.repository }}:{{ .Values.windowsTarget.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.windowsTarget.image.pullPolicy }}
+          env:
+            - name: VERSION
+              value: "{{ .Values.windowsTarget.windowsVersion }}"
+            - name: DISK_SIZE
+              value: "{{ .Values.windowsTarget.diskSize }}"
+            - name: RAM_SIZE
+              value: "{{ .Values.windowsTarget.ramSize }}"
+            - name: CPU_CORES
+              value: "{{ .Values.windowsTarget.cpuCores }}"
+            - name: USERNAME
+              value: "{{ .Values.windowsTarget.username }}"
+            - name: PASSWORD
+              value: "{{ .Values.windowsTarget.password }}"
+          ports:
+            - name: web
+              containerPort: 8006
+              protocol: TCP
+            - name: rdp
+              containerPort: 3389
+              protocol: TCP
+            - name: vnc
+              containerPort: 5900
+              protocol: TCP
+            - name: novnc
+              containerPort: 6080
+              protocol: TCP
+          volumeMounts:
+            - name: storage
+              mountPath: /storage
+          resources:
+            {{- toYaml .Values.windowsTarget.resources | nindent 12 }}
+          {{- if .Values.windowsTarget.kvmDevice }}
+          volumeDevices:
+            - name: kvm
+              devicePath: /dev/kvm
+          {{- end }}
+      {{- with .Values.windowsTarget.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.windowsTarget.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.windowsTarget.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.windowsTarget.kvmDevice }}
+      volumes:
+        - name: kvm
+          hostPath:
+            path: /dev/kvm
+            type: CharDevice
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: storage
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.windowsTarget.storageSize }}
+{{- end }}

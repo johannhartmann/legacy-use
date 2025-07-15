@@ -120,6 +120,42 @@ kubectl port-forward -n legacy-use deployment/legacy-use-wine-target 6080:6080
 **Use Wine when:** You need lightweight Windows app support with fast startup
 **Use Windows VM when:** You need full Windows compatibility or complex applications
 
+## Linux Target (Example Machine)
+
+The Linux target provides an example Linux machine for testing:
+
+### Enable Linux Target
+
+```bash
+helm install legacy-use . -n legacy-use --create-namespace \
+  -f values-production.yaml \
+  -f values-linux.yaml
+```
+
+### Access Linux Target
+
+```bash
+# VNC access
+kubectl port-forward -n legacy-use deployment/legacy-use-linux-target 5900:5900
+
+# noVNC web access
+kubectl port-forward -n legacy-use deployment/legacy-use-linux-target 6080:6080
+# Access at http://localhost:6080/vnc.html
+```
+
+### Create Linux Target in Legacy Use
+
+```json
+{
+  "name": "Linux Machine",
+  "type": "vnc",
+  "host": "legacy-use-linux-target",
+  "port": 5900,
+  "width": 1920,
+  "height": 1080
+}
+```
+
 ## Windows Target Access Methods (Full VM)
 
 The Windows target provides multiple ways to access the Windows desktop:

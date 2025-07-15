@@ -1,0 +1,22 @@
+{{- /*
+This chart is a starting point for deploying the legacy-use application to Kubernetes.
+*/}}
+
+{{- define "legacy-use.notes" }}
+1. Get the application URL by running these commands:
+{{- if .Values.ingress.enabled }}
+  {{- $ingressHosts := .Values.ingress.hosts | default (list) }}
+  {{- if gt (len $ingressHosts) 0 }}
+    {{- range $host := $ingressHosts }}
+  http://{{ .host }}
+    {{- end }}
+  {{- else }}
+  echo "NOTE: No ingress host is configured. Please configure a host in values.yaml"
+  {{- end }}
+{{- else }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "legacy-use.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  export CONTAINER_PORT=$(kubectl get pod --namespace {{ .Release.Namespace }} $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+  echo "Visit http://127.0.0.1:8080 to use your application"
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:$CONTAINER_PORT
+{{- end }}
+{{- end }}
