@@ -1,0 +1,55 @@
+# Android target specific values for legacy-use
+# This enables the Android emulator target
+
+# Enable the Android target
+androidTarget:
+  enabled: true
+  
+  # Use a specific Android version if needed
+  # image:
+  #   tag: "emulator_14.0"  # Android 14
+  
+  # Customize emulator device
+  # emulatorDevice: "Pixel 6"
+  
+  # Increase resources for better performance
+  resources:
+    limits:
+      cpu: 4
+      memory: 6Gi
+    requests:
+      cpu: 2
+      memory: 4Gi
+  
+  # Enable persistence for app data
+  persistence:
+    enabled: true
+    size: 30Gi
+  
+  # Node selector for nodes with KVM support (optional)
+  # nodeSelector:
+  #   feature.node.kubernetes.io/cpu-feature.kvm: "true"
+
+# Optional: expose Android noVNC via ingress
+  ingress:
+    enabled: false
+    className: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+      nginx.ingress.kubernetes.io/configuration-snippet: |
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    hosts:
+      - host: android.legacy-use.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: android-novnc
+                port:
+                  number: 6080
+    tls:
+      - secretName: android-tls
+        hosts:
+          - android.legacy-use.example.com

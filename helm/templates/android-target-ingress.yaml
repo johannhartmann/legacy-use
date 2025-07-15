@@ -1,0 +1,44 @@
+{{- if and .Values.androidTarget.enabled .Values.androidTarget.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-android-target
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: android-target
+  {{- with .Values.androidTarget.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.androidTarget.ingress.className }}
+  ingressClassName: {{ .Values.androidTarget.ingress.className }}
+  {{- end }}
+  {{- if .Values.androidTarget.ingress.tls }}
+  tls:
+    {{- range .Values.androidTarget.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.androidTarget.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- if .pathType }}
+            pathType: {{ .pathType }}
+            {{- end }}
+            backend:
+              service:
+                name: {{ include "legacy-use.fullname" $ }}-android-target
+                port:
+                  number: {{ .backend.service.port.number }}
+          {{- end }}
+    {{- end }}
+{{- end }}
