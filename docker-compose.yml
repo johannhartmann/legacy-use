@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # Main legacy-use management service
+  legacy-use-mgmt:
+    image: legacy-use-mgmt:local
+    container_name: legacy-use-mgmt
+    environment:
+      - LEGACY_USE_DEBUG=${LEGACY_USE_DEBUG:-0}
+    env_file:
+      - .env
+      - .env.local
+    ports:
+      - "8088:8088"
+      - "5173:5173"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/.anthropic:/home/legacy-use-mgmt/.anthropic
+      - ${HOME}/.config/gcloud/application_default_credentials.json:/home/legacy-use-mgmt/.config/gcloud/application_default_credentials.json
+      - ${SQLITE_PATH:-./server.db}:/home/legacy-use-mgmt/server/server.db
+      - ./.env.local:/home/legacy-use-mgmt/.env.local
+      # Development mode volumes
+      - ./server:/home/legacy-use-mgmt/server/
+      - ./app:/home/legacy-use-mgmt/app/
+    depends_on:
+      - demo-db
+    restart: unless-stopped
+    networks:
+      - legacy-use-network
+
+  # Demo database
+  demo-db:
+    image: legacy-use-demo-db:local
+    container_name: legacy-use-demo-db
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=legacy_use_demo
+    volumes:
+      - demo_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - legacy-use-network
+
+  # Wine target for Windows application support
+  wine-target:
+    image: legacy-use-wine-target:local
+    container_name: legacy-use-wine-target
+    environment:
+      - DISPLAY=:1
+      - WINEARCH=win64
+      - WINEPREFIX=/home/wineuser/.wine
+    ports:
+      - "5900:5900"  # VNC
+      - "6080:6080"  # noVNC
+    volumes:
+      - wine_data:/home/wineuser/.wine
+      - wine_apps:/home/wineuser/apps
+    restart: unless-stopped
+    networks:
+      - legacy-use-network
+
+  # Linux machine target (example target)
+  linux-machine:
+    image: linux-machine:local
+    container_name: legacy-use-linux-machine
+    restart: unless-stopped
+    networks:
+      - legacy-use-network
+    profiles:
+      - linux-targets
+
+  # Optional: Windows VM target (requires KVM)
+  # Uncomment if you want to use full Windows VM
+  # windows-target:
+  #   image: dockurr/windows:latest
+  #   container_name: legacy-use-windows-target
+  #   environment:
+  #     - VERSION=11
+  #     - DISK_SIZE=64G
+  #     - RAM_SIZE=8G
+  #     - CPU_CORES=4
+  #     - USERNAME=LegacyUser
+  #     - PASSWORD=LegacyPass123!
+  #   ports:
+  #     - "8006:8006"  # Web viewer
+  #     - "3389:3389"  # RDP
+  #   volumes:
+  #     - windows_data:/storage
+  #   devices:
+  #     - /dev/kvm:/dev/kvm
+  #   cap_add:
+  #     - NET_ADMIN
+  #   restart: unless-stopped
+  #   networks:
+  #     - legacy-use-network
+
+volumes:
+  demo_db_data:
+  wine_data:
+  wine_apps:
+  # windows_data:
+
+networks:
+  legacy-use-network:
+    driver: bridge
