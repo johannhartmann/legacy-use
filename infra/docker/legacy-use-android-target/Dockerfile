@@ -16,10 +16,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Fix log_web_shared service and configure proper container logging
-# The base image uses custom supervisor configs in /home/androidusr/docker-android/mixins/configs/process/
-# We need to override the specific config file that defines log_web_shared
-COPY infra/docker/legacy-use-android-target/supervisord-base-override.conf /home/androidusr/docker-android/mixins/configs/process/supervisord-base.conf
+# Fix log_web_shared service by creating a dummy script that exits successfully
+# This is less invasive than replacing the entire supervisor configuration
+RUN echo '#!/bin/bash\nexit 0' > /usr/local/bin/docker-android-share-log-dummy && \
+    chmod +x /usr/local/bin/docker-android-share-log-dummy && \
+    # Replace the problematic command with our dummy script
+    sed -i 's|/usr/local/bin/docker-android share log|/usr/local/bin/docker-android-share-log-dummy|g' \
+        /home/androidusr/docker-android/mixins/configs/process/supervisord-base.conf
 
 # Create a directory for app storage
 RUN mkdir -p /home/androidusr/apps && \
