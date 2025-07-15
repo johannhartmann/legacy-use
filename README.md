@@ -68,6 +68,11 @@ uv run python generate_api_key.py
 
 # 4. Build and start all services
 ./build_all_docker.sh
+
+# Option A: Docker Compose (recommended - includes Wine container)
+LEGACY_USE_DEBUG=1 ./start_docker_compose.sh
+
+# Option B: Individual containers (original)
 LEGACY_USE_DEBUG=1 ./start_docker.sh
 ```
 
@@ -89,9 +94,55 @@ This script will:
 
 Once the setup completes:
 
-1. **Frontend**: Open <http://localhost:8077> - you should see the legacy-use dashboard
+1. **Frontend**: Open <http://localhost:8088> - you should see the legacy-use dashboard
 2. **API Documentation**: Visit <http://localhost:8088/redoc> - to explore the REST API
 🎉 **You're all set!** The complete setup usually takes 2-5 minutes depending on your internet connection.
+
+**🚀 Why Docker Compose is Recommended:**
+- Wine container starts automatically with the main app
+- All services networked together (use `wine-target` as host)
+- Easier development with hot reloading
+- One command to start/stop everything
+- Access Wine immediately at http://localhost:6080/vnc.html
+
+### Wine Container Support (Optional)
+
+For lightweight Windows application automation, legacy-use includes a Wine container:
+
+```bash
+# Option A: Integrated with Docker Compose (recommended)
+LEGACY_USE_DEBUG=1 ./start_docker_compose.sh
+# Wine container starts automatically
+
+# Option B: Standalone Wine container
+cd infra/docker/legacy-use-wine-target
+docker-compose up -d
+
+# Access via web browser
+open http://localhost:6080/vnc.html
+# Password: wine
+```
+
+**Benefits of Wine Container:**
+- ✅ No Windows license required
+- ✅ Lightweight (2GB vs 64GB for full Windows)
+- ✅ Fast startup (seconds vs minutes)
+- ✅ Good compatibility with many Windows applications
+
+**Create Wine Target in legacy-use:**
+```json
+{
+  "name": "Wine Applications",
+  "type": "vnc",
+  "host": "wine-target",
+  "port": 5900,
+  "password": "wine"
+}
+```
+
+**Note**: Use `wine-target` as host when using Docker Compose, or `localhost` when running standalone.
+
+See [Wine container documentation](infra/docker/legacy-use-wine-target/README.md) for more details.
 
 ### Troubleshooting
 
