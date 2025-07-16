@@ -1,2 +1,2 @@
 FROM postgres:16
-COPY 01-sample-data.sql /docker-entrypoint-initdb.d/
+COPY infra/docker/legacy-use-demo-db/01-sample-data.sql /docker-entrypoint-initdb.d/
