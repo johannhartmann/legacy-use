@@ -59,7 +59,11 @@ build_image "legacy-use-wine-target" "infra/docker/legacy-use-wine-target/Docker
 
 # Android build
 echo "🤖 Starting Android build..."
-build_image "legacy-use-android-target" "infra/docker/legacy-use-android-target/Dockerfile"
+build_image "legacy-use-android-target" "infra/docker/legacy-use-android-target/Dockerfile" &
+
+# MCP server build
+echo "🔌 Starting MCP server build..."
+build_image "legacy-use-mcp-server" "mcp-server/Dockerfile" "mcp-server"
 
 # Wait for remaining builds
 wait
