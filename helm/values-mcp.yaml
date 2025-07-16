@@ -1,0 +1,44 @@
+# Example values file for enabling MCP server
+# Use with: helm install legacy-use ./helm -f helm/values-mcp.yaml
+
+# Enable the MCP server
+mcpServer:
+  enabled: true
+  
+  # Increase replicas for high availability
+  replicaCount: 2
+  
+  # Configure MCP server settings
+  logLevel: "INFO"
+  syncInterval: "30"  # Check for API changes every 30 seconds
+  
+  # Resource limits for production
+  resources:
+    limits:
+      cpu: 1
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Additional environment variables if needed
+  extraEnv:
+    # - name: CUSTOM_ENV
+    #   value: "custom-value"
+
+# You'll also want to enable the components that MCP server depends on:
+backend:
+  enabled: true
+
+postgresql:
+  enabled: true
+
+# And likely some targets to work with:
+wineTarget:
+  enabled: true
+
+linuxTarget:
+  enabled: true
+
+androidTarget:
+  enabled: true
