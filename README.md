@@ -300,6 +300,43 @@ VITE_PUBLIC_DISABLE_TRACKING=true
 
 ---
 
+## 🔌 MCP Server Integration
+
+Legacy-use includes an MCP (Model Context Protocol) server that allows you to use your APIs directly in Claude Desktop and other MCP-compatible clients.
+
+### Quick Start
+
+1. **Install the MCP server**:
+   ```bash
+   cd mcp-server
+   pip install -e .
+   ```
+
+2. **Configure Claude Desktop** - Add to your config file:
+   ```json
+   {
+     "mcpServers": {
+       "legacy-use": {
+         "command": "python",
+         "args": ["-m", "legacy_use_mcp_server"],
+         "cwd": "/path/to/legacy-use/mcp-server",
+         "env": {
+           "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/legacy_use_demo"
+         }
+       }
+     }
+   }
+   ```
+
+3. **Use in Claude Desktop**:
+   - "List all Legacy-Use APIs"
+   - "Use the GnuCash API to read account information"
+   - "Add a new invoice with amount 500"
+
+See [mcp-server/claude-desktop-config.md](mcp-server/claude-desktop-config.md) for detailed setup instructions.
+
+---
+
 ## Optional Configuration
 
 - `VITE_ALLOW_OPENVPN`: Set to `true` to enable OpenVPN target creation. **⚠️ Security Warning**: OpenVPN requires elevated system privileges (NET_ADMIN capabilities) which may pose security risks. Only enable this if you understand the security implications and trust your target environments

@@ -18,6 +18,7 @@ docker build -t legacy-use-frontend -f infra/docker/legacy-use-frontend/Dockerfi
 docker build -t legacy-use-backend -f infra/docker/legacy-use-backend/Dockerfile .
 docker build -t legacy-use-mgmt -f infra/docker/legacy-use-mgmt/Dockerfile .
 docker build -t legacy-use-wine-target -f infra/docker/legacy-use-wine-target/Dockerfile .
+docker build -t legacy-use-android-target -f infra/docker/legacy-use-android-target/Dockerfile .
 docker build -t legacy-use-linux-machine -f infra/docker/linux-machine/Dockerfile .
 ```
 
@@ -37,6 +38,11 @@ uv run python generate_api_key.py
 
 # Run database migrations
 cd server && uv run alembic upgrade head
+
+# MCP Server development
+cd mcp-server
+pip install -e .
+python test_server.py  # Test database connection and API conversion
 ```
 
 ### Code Quality Commands
@@ -87,7 +93,9 @@ npm run test
 - **Backend API**: http://localhost:8088 (requires API key)
 - **Wine Target**: VNC on port 5900, noVNC on http://localhost:6080 (Windows apps via Wine, password: wine)
 - **Linux Target**: VNC on port 5901, noVNC on http://localhost:6081 (Linux desktop with GnuCash, password: password123)
+- **Android Target**: ADB on port 5555, VNC on port 5902, noVNC on http://localhost:6082 (Android emulator)
 - **Demo Database**: PostgreSQL on port 5432
+- **MCP Server**: Model Context Protocol server for Claude Desktop integration (see `mcp-server/`)
 
 ## Development Tips
 
@@ -106,7 +114,8 @@ LEGACY_USE_DEBUG=1              # Enable hot reloading
 ### Working with Targets
 - Wine target provides lightweight Windows app support
 - Linux target runs full Ubuntu desktop
-- Both expose VNC for remote access
+- Android target runs Android 11 emulator (Samsung Galaxy S10)
+- All targets expose VNC for remote access
 - Targets can be added/removed via Management UI
 
 ### Database
@@ -116,7 +125,7 @@ LEGACY_USE_DEBUG=1              # Enable hot reloading
 
 ## Common Issues
 
-1. **Port conflicts**: Services use ports 8001, 5901, 5902, 5432
+1. **Port conflicts**: Services use ports 8001, 5555, 5900-5902, 5432, 6080-6082
 2. **API key missing**: Set `ANTHROPIC_API_KEY` environment variable
 3. **Docker permissions**: May need sudo or docker group membership
 4. **Build failures**: Ensure Docker daemon is running
