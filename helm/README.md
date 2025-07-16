@@ -376,6 +376,39 @@ result = requests.post(
 )
 ```
 
+## MCP Server
+
+Legacy-use includes an MCP (Model Context Protocol) server that exposes all APIs as tools for Claude Desktop.
+
+### Enable MCP Server
+
+```bash
+helm install legacy-use . -n legacy-use --create-namespace \
+  -f values-production.yaml \
+  -f values-mcp.yaml
+```
+
+### MCP Server Configuration
+
+The MCP server can be configured via values:
+
+```yaml
+mcpServer:
+  enabled: true
+  replicaCount: 2
+  logLevel: "INFO"
+  syncInterval: "30"  # Check for API changes every 30 seconds
+```
+
+### Using with Claude Desktop
+
+1. Port-forward the MCP server (if not exposed via ingress):
+```bash
+kubectl port-forward -n legacy-use deployment/legacy-use-mcp-server 3000:3000
+```
+
+2. Configure Claude Desktop to use the MCP server. See [mcp-server/claude-desktop-config.md](../mcp-server/claude-desktop-config.md) for detailed instructions.
+
 ## Uninstall
 
 ```bash
