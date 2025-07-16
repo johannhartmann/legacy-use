@@ -60,7 +60,7 @@ services:
     container_name: legacy-use-linux-machine
     ports:
       - "5901:5900"  # VNC (different port to avoid Wine conflict)
-      - "6081:6080"  # noVNC (different port to avoid Wine conflict)
+      - "6081:80"    # noVNC (nginx serves on port 80 inside container)
     restart: unless-stopped
     networks:
       - legacy-use-network
@@ -97,9 +97,14 @@ services:
       - LEGACY_USE_API_KEY=${LEGACY_USE_API_KEY:-}
       - LOG_LEVEL=${MCP_LOG_LEVEL:-INFO}
       - SYNC_INTERVAL=${MCP_SYNC_INTERVAL:-30}
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=3000
+      - MCP_SERVER_PATH=/mcp
     env_file:
       - .env
       - .env.local
+    ports:
+      - "3000:3000"
     depends_on:
       - demo-db
       - legacy-use-mgmt

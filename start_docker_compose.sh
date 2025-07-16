@@ -28,6 +28,7 @@ required_images=(
     "legacy-use-mgmt:local"
     "legacy-use-demo-db:local"
     "legacy-use-wine-target:local"
+    "legacy-use-mcp-server:local"
 )
 
 missing_images=()
@@ -63,9 +64,10 @@ echo "🌐 Access points:"
 echo "   - Frontend: http://localhost:8088"
 echo "   - API Docs: http://localhost:8088/redoc"
 echo "   - Wine VNC: http://localhost:6080/vnc.html (password: wine)"
+echo "   - MCP Server: http://localhost:3000/mcp"
 echo ""
 echo "🎯 Additional services:"
-echo "   - Linux machine: http://localhost:6081/vnc.html"
+echo "   - Linux machine: http://localhost:6081/static/vnc.html"
 echo "   - Windows VM: uncomment windows-target in docker-compose.yml"
 echo ""
 echo "📝 To stop services:"
