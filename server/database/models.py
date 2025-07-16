@@ -50,6 +50,7 @@ class Target(Base):
     vpn_password = Column(String, nullable=True)
     width = Column(String, nullable=False, default='1024')
     height = Column(String, nullable=False, default='768')
+    vnc_path = Column(String, nullable=False, default='vnc.html')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     is_archived = Column(Boolean, default=False)
