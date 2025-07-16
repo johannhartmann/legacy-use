@@ -343,6 +343,40 @@ See [mcp-server/claude-desktop-config.md](mcp-server/claude-desktop-config.md) f
 
 - `SHOW_DOCS`: Set to `true` to make backend endpoints documentation available via `/redoc`
 
+## 🚀 Added by Mayflower
+
+The following features and improvements have been added:
+
+### Container & Target Support
+- **Wine Container**: Lightweight Windows application support via Wine (fast startup, ~1GB image)
+- **Linux Desktop Target**: Full Ubuntu desktop environment with GnuCash pre-installed
+- **Android Emulator Target**: Samsung Galaxy S10 emulator with ADB and VNC access
+- **Optimized Docker Builds**: Parallel build system with BuildKit and layer caching
+
+### Infrastructure & Deployment
+- **Kubernetes/Helm Support**: Complete Helm charts for production deployment
+- **GitHub Actions CI/CD**: Automated Docker image builds and pushes
+- **Docker Compose v2**: Updated to modern compose syntax
+- **Service Account Templates**: Proper RBAC for Kubernetes deployments
+
+### MCP Server Integration
+- **Model Context Protocol Server**: Expose all APIs as tools for AI assistants
+- **Automatic API Discovery**: Real-time synchronization with database changes
+- **FastMCP Framework**: High-performance tool registration and execution
+- **Desktop Integration**: Ready for use with Claude Desktop and other MCP clients
+
+### Improvements & Fixes
+- **Removed Legacy Features**: Cleaned up proxy services and payment handling
+- **Fixed Container Issues**: Resolved X11VNC shared memory, supervisor logging, and permission errors
+- **Enhanced Documentation**: Added comprehensive guides for Wine, Linux, Android, and MCP setup
+- **Debug Mode by Default**: Development-friendly startup configuration
+
+### Developer Experience
+- **Hot Reloading**: Automatic reload for frontend and backend changes
+- **UV Package Manager**: Fast Python dependency installation in Docker
+- **Consolidated Scripts**: Unified build and startup scripts
+- **Sample Data**: Pre-configured targets in demo database
+
 ## 🤝 Contributing
 
 We love contributors! Read [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
