@@ -349,7 +349,6 @@ The following features and improvements have been added:
 
 ### Container & Target Support
 - **Wine Container**: Lightweight Windows application support via Wine (fast startup, ~1GB image)
-- **Linux Desktop Target**: Full Ubuntu desktop environment with GnuCash pre-installed
 - **Android Emulator Target**: Samsung Galaxy S10 emulator with ADB and VNC access
 - **Optimized Docker Builds**: Parallel build system with BuildKit and layer caching
 
@@ -367,15 +366,11 @@ The following features and improvements have been added:
 
 ### Improvements & Fixes
 - **Removed Legacy Features**: Cleaned up proxy services and payment handling
-- **Fixed Container Issues**: Resolved X11VNC shared memory, supervisor logging, and permission errors
 - **Enhanced Documentation**: Added comprehensive guides for Wine, Linux, Android, and MCP setup
-- **Debug Mode by Default**: Development-friendly startup configuration
 
 ### Developer Experience
-- **Hot Reloading**: Automatic reload for frontend and backend changes
 - **UV Package Manager**: Fast Python dependency installation in Docker
 - **Consolidated Scripts**: Unified build and startup scripts
-- **Sample Data**: Pre-configured targets in demo database
 
 ## 🤝 Contributing
 
