@@ -84,6 +84,29 @@ services:
     networks:
       - legacy-use-network
 
+  # MCP server for API integration
+  mcp-server:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    image: legacy-use-mcp-server:local
+    container_name: legacy-use-mcp-server
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@demo-db:5432/legacy_use_demo
+      - LEGACY_USE_URL=http://legacy-use-mgmt:8088
+      - LEGACY_USE_API_KEY=${LEGACY_USE_API_KEY:-}
+      - LOG_LEVEL=${MCP_LOG_LEVEL:-INFO}
+      - SYNC_INTERVAL=${MCP_SYNC_INTERVAL:-30}
+    env_file:
+      - .env
+      - .env.local
+    depends_on:
+      - demo-db
+      - legacy-use-mgmt
+    restart: unless-stopped
+    networks:
+      - legacy-use-network
+
   # Optional: Windows VM target (requires KVM)
   # Uncomment if you want to use full Windows VM
   # windows-target:
