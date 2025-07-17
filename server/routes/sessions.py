@@ -4,6 +4,7 @@ Session management routes.
 
 import asyncio
 import logging
+import os
 import re
 from typing import Any, Dict
 from uuid import UUID
@@ -23,10 +24,6 @@ from server.utils.docker_manager import (
     launch_container,
     stop_container,
 )
-from server.utils.telemetry import (
-    capture_session_created,
-    capture_session_deleted,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +40,7 @@ async def list_sessions(include_archived: bool = False):
     """List all active sessions."""
     sessions = db.list_sessions(include_archived)
 
-    # Add container status to each session with a container_id
+    # Add container status to each session
     for session in sessions:
         if container_id := session.get('container_id'):
             container_status = await get_container_status(
@@ -142,38 +139,101 @@ async def create_session(
         'HEIGHT': str(target.get('height', 768)),
     }
 
-    # Launch Docker container for the session
-    container_id, container_ip = launch_container(
-        target['type'], str(db_session['id']), container_params=container_params
-    )
-
-    if container_id and container_ip:
-        # Update session with container info
-        db.update_session(
-            db_session['id'],
-            {
-                'container_id': container_id,
-                'container_ip': container_ip,
-                'status': 'running',
-                'state': 'initializing',  # Ensure state is set
-            },
+    # Always use container pool for scaling (both docker-compose and k8s)
+    use_container_pool = True
+    
+    if use_container_pool:
+        # Use container pool to allocate existing container
+        from server.utils.container_pool import container_pool
+        
+        # Map target type to pool target type (remove vpn suffix)
+        pool_target_type = client_type
+        if pool_target_type == 'vnc':
+            # Map generic vnc to specific target types based on the target configuration
+            if 'wine' in target.get('name', '').lower():
+                pool_target_type = 'wine'
+            elif 'linux' in target.get('name', '').lower():
+                pool_target_type = 'linux'
+            elif 'android' in target.get('name', '').lower():
+                pool_target_type = 'android'
+        
+        # Allocate container from pool
+        container_info = await container_pool.allocate_container(
+            str(db_session['id']), pool_target_type
         )
-        # Get updated session
-        db_session = db.get_session(db_session['id'])
-
-        # Add container status
-        if container_id := db_session.get('container_id'):
+        
+        if container_info:
+            # Get VNC and noVNC ports from container
+            vnc_port = container_info.ports.get('5900', '')
+            novnc_port = container_info.ports.get('6080', '') or container_info.ports.get('80', '')
+            
+            # Update session with container info
+            # Use container name as IP since containers can reach each other by name
+            container_ip = container_info.ip_address or container_info.name
+            db.update_session(
+                db_session['id'],
+                {
+                    'container_id': container_info.id,
+                    'container_ip': container_ip,
+                    'status': 'running',
+                    'state': 'ready',  # Containers in pool are already initialized
+                    'vnc_port': vnc_port,
+                    'novnc_port': novnc_port,
+                },
+            )
+            # Get updated session
+            db_session = db.get_session(db_session['id'])
+            
+            # Add container status
             container_status = await get_container_status(
-                container_id, state=db_session.get('state')
+                container_info.id, state=db_session.get('state')
             )
             db_session['container_status'] = container_status
+        else:
+            # No available containers in pool
+            db.update_session(
+                db_session['id'], 
+                {
+                    'status': 'error', 
+                    'state': 'initializing',
+                    'error_message': f'No available {pool_target_type} containers in pool'
+                }
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=f"No available {pool_target_type} containers. Please try again later or scale up the containers."
+            )
     else:
-        # Update session status to error if container launch failed
-        db.update_session(
-            db_session['id'], {'status': 'error', 'state': 'initializing'}
+        # Original container launch logic
+        container_id, container_ip = launch_container(
+            target['type'], str(db_session['id']), container_params=container_params
         )
 
-    capture_session_created(request, db_session)
+        if container_id and container_ip:
+            # Update session with container info
+            db.update_session(
+                db_session['id'],
+                {
+                    'container_id': container_id,
+                    'container_ip': container_ip,
+                    'status': 'running',
+                    'state': 'initializing',  # Ensure state is set
+                },
+            )
+            # Get updated session
+            db_session = db.get_session(db_session['id'])
+
+            # Add container status
+            if container_id := db_session.get('container_id'):
+                container_status = await get_container_status(
+                    container_id, state=db_session.get('state')
+                )
+                db_session['container_status'] = container_status
+        else:
+            # Update session status to error if container launch failed
+            db.update_session(
+                db_session['id'], {'status': 'error', 'state': 'initializing'}
+            )
 
     return db_session
 
@@ -189,6 +249,12 @@ async def get_session(session_id: UUID):
             )
             # Add container status to session data
             session['container_status'] = container_status
+        
+        # Add target vnc_path for frontend VNC viewer
+        if target_id := session.get('target_id'):
+            target = db.get_target(target_id)
+            if target:
+                session['target_vnc_path'] = target.get('vnc_path', 'vnc.html')
 
         return session
     raise HTTPException(status_code=404, detail='Session not found')
@@ -231,14 +297,21 @@ async def delete_session(session_id: UUID, request: Request):
         },
     )
 
-    # Stop the container if it exists
-    if container_id := session.get('container_id'):
-        try:
-            stop_container(container_id)
-        except Exception as e:
-            logger.error(f'Error stopping container: {str(e)}')
-
-    capture_session_deleted(request, session_id, False)
+    # Always use container pool for scaling (both docker-compose and k8s)
+    use_container_pool = True
+    
+    if use_container_pool:
+        # Release container back to pool
+        from server.utils.container_pool import container_pool
+        await container_pool.release_container(str(session_id))
+        logger.info(f'Released container for session {session_id} back to pool')
+    else:
+        # Stop the container if it exists (original logic)
+        if container_id := session.get('container_id'):
+            try:
+                stop_container(container_id)
+            except Exception as e:
+                logger.error(f'Error stopping container: {str(e)}')
 
     # Return success message
     return {'message': 'Session archived successfully'}
@@ -252,14 +325,20 @@ async def hard_delete_session(session_id: UUID, request: Request):
     if not session:
         raise HTTPException(status_code=404, detail='Session not found')
 
-    # Stop container if it exists
-    if session.get('container_id'):
-        stop_container(session['container_id'])
+    # Always use container pool for scaling (both docker-compose and k8s)
+    use_container_pool = True
+    
+    if use_container_pool:
+        # Release container back to pool
+        from server.utils.container_pool import container_pool
+        await container_pool.release_container(str(session_id))
+    else:
+        # Stop container if it exists (original logic)
+        if session.get('container_id'):
+            stop_container(session['container_id'])
 
     # Delete session from database
     db.hard_delete_session(session_id)
-
-    capture_session_deleted(request, session_id, True)
 
     return {'message': 'Session permanently deleted'}
 
@@ -314,7 +393,18 @@ async def proxy_vnc(session_id: UUID, path: str, request: Request):
 
     # Construct the target URL
     container_ip = session.get('container_ip')
-    target_url = f'http://{container_ip}:6080/{path}'
+    
+    # Check if we have dynamic ports from container pool
+    if session.get('novnc_port'):
+        # When using container pool with dynamic ports, we need to connect
+        # to the container directly using the internal port
+        # The linux-machine serves noVNC on port 80 inside the container
+        target_url = f'http://{container_ip}:80/{path}'
+        logger.info(f'VNC proxy: Using container network with dynamic ports - {target_url}')
+    else:
+        # Use container network with fixed port (original behavior)
+        target_url = f'http://{container_ip}:6080/{path}'
+        logger.info(f'VNC proxy: Using fixed port - {target_url}')
 
     # Get query parameters from the request
     params = dict(request.query_params)
@@ -345,11 +435,18 @@ async def proxy_vnc(session_id: UUID, path: str, request: Request):
         def close_response():
             client_response.close()
 
+        # Filter out problematic headers that can cause decoding issues
+        response_headers = dict(client_response.headers)
+        headers_to_remove = ['content-encoding', 'content-length', 'transfer-encoding']
+        for header in headers_to_remove:
+            response_headers.pop(header, None)
+            response_headers.pop(header.title(), None)
+
         # Return a streaming response
         return StreamingResponse(
             content=client_response.iter_content(chunk_size=8192),
             status_code=client_response.status_code,
-            headers=dict(client_response.headers),
+            headers=response_headers,
             background=BackgroundTask(close_response),
         )
     except requests.RequestException as e:
@@ -392,11 +489,28 @@ async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
 
     # Construct the target WebSocket URL
     container_ip = session.get('container_ip')
-    target_ws_url = f'ws://{container_ip}:6080/websockify'
+    
+    # Check if we have dynamic ports from container pool
+    if session.get('novnc_port'):
+        # For containers with novnc_port, websockify runs on that port
+        novnc_port = session.get('novnc_port')
+        target_ws_url = f'ws://{container_ip}:{novnc_port}/websockify'
+    else:
+        # Use container network with fixed port (original behavior)
+        target_ws_url = f'ws://{container_ip}:6080/websockify'
+    
     logger.info(f'[VNC-WS] Connecting to container: {target_ws_url}')
 
-    # Accept the WebSocket connection
-    await websocket.accept()
+    # Accept the WebSocket connection with the same subprotocol if provided
+    subprotocol = None
+    if websocket.headers.get('sec-websocket-protocol'):
+        # noVNC typically uses 'binary' or 'base64' subprotocol
+        requested_protocols = websocket.headers.get('sec-websocket-protocol').split(',')
+        # We'll accept the first protocol requested (usually 'binary')
+        subprotocol = requested_protocols[0].strip()
+        logger.info(f'[VNC-WS] Accepting WebSocket with subprotocol: {subprotocol}')
+    
+    await websocket.accept(subprotocol=subprotocol)
 
     def check_clipboard_content(data, direction_label):
         """Check if data contains clipboard filter string and log accordingly."""
@@ -422,8 +536,12 @@ async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
         return contains_filter
 
     try:
-        # Connect to the target WebSocket
-        async with websockets.connect(target_ws_url) as ws_client:
+        # Connect to the target WebSocket with the same subprotocol
+        connect_kwargs = {}
+        if subprotocol:
+            connect_kwargs['subprotocols'] = [subprotocol]
+            
+        async with websockets.connect(target_ws_url, **connect_kwargs) as ws_client:
             logger.info(f'[VNC-WS] Connected to container for session {session_id}')
 
             # Create tasks for bidirectional communication
