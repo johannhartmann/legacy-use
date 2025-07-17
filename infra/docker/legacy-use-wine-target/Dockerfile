@@ -6,16 +6,21 @@ ENV DISPLAY=:1
 ENV WINEARCH=win64
 ENV WINEPREFIX=/home/wineuser/.wine
 
-# Install everything in one optimized layer
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Enable 32-bit architecture for Wine
+RUN dpkg --add-architecture i386 && \
+    apt-get update && apt-get install -y --no-install-recommends \
     # Essential tools
     wget curl ca-certificates \
     # VNC and desktop
     xvfb x11vnc fluxbox xterm \
     # Process management
     supervisor \
-    # Wine from Ubuntu repos (much faster than official Wine)
-    wine \
+    # Wine from Ubuntu repos
+    wine wine64 \
+    # Wine dependencies for Windows apps
+    fonts-wine \
+    # Additional libraries that TurboCASH might need
+    lib32z1 lib32ncurses6 \
     # Web VNC
     novnc websockify \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -40,9 +45,11 @@ ENV HOME=/home/wineuser
 # Skip Wine initialization for faster builds
 # Wine will be initialized at runtime
 
+# TurboCASH will be downloaded at runtime to avoid slow builds
+
 # Create startup script
 USER root
-RUN printf '#!/bin/bash\nset -e\necho "Starting Wine container..."\n\n# Initialize Wine at runtime\nsu - wineuser -c "wineboot --init 2>/dev/null || true" &\n\n# Start supervisor\nexec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf\n' > /startup.sh && chmod +x /startup.sh
+RUN printf '#!/bin/bash\nset -e\necho "Starting Wine container..."\n\n# Initialize Wine at runtime\nsu - wineuser -c "wineboot --init 2>/dev/null || true" &\n\n# Download TurboCASH if not present\nif [ ! -f "/tmp/TurboCASH_Setup.exe" ]; then\n    echo "Downloading TurboCASH..."\n    wget -O /tmp/TurboCASH_Setup.exe "https://sourceforge.net/projects/turbocash/files/latest/download" || true\n    chown wineuser:wineuser /tmp/TurboCASH_Setup.exe || true\nfi\n\n# Install TurboCASH if not already installed\nif [ -f "/tmp/TurboCASH_Setup.exe" ] && \n   [ ! -f "/home/wineuser/.wine/drive_c/Program Files/TurboCASH/TurboCASH.exe" ] && \n   [ ! -f "/home/wineuser/.wine/drive_c/Program Files (x86)/TurboCASH/TurboCASH.exe" ]; then\n    echo "Installing TurboCASH..."\n    su - wineuser -c "wine /tmp/TurboCASH_Setup.exe /SILENT /SP- /NOCANCEL /NORESTART || true"\n    sleep 5\nfi\n\n# Create desktop shortcut for TurboCASH\nsu - wineuser -c "mkdir -p /home/wineuser/Desktop && \nprintf \"[Desktop Entry]\\nVersion=1.0\\nType=Application\\nName=TurboCASH\\nExec=wine \\\"C:/Program Files/TurboCASH/TurboCASH.exe\\\"\\nIcon=applications-office\\nTerminal=false\\nCategories=Office;Finance;\" > /home/wineuser/Desktop/turbocash.desktop && \nchmod +x /home/wineuser/Desktop/turbocash.desktop" || true\n\n# Start supervisor\nexec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf\n' > /startup.sh && chmod +x /startup.sh
 
 EXPOSE 5900 6080
 VOLUME /home/wineuser/.wine
