@@ -1,10 +1,10 @@
-# Fast Wine container for development - uses Ubuntu's wine package
+# Fast Wine container for development - uses Ubuntu's wine package with 32-bit support
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV DISPLAY=:1
-ENV WINEARCH=win64
-ENV WINEPREFIX=/home/wineuser/.wine
+ENV WINEARCH=win32
+ENV WINEPREFIX=/home/wineuser/.wine32
 
 # Enable 32-bit architecture for Wine
 RUN dpkg --add-architecture i386 && \
@@ -15,12 +15,12 @@ RUN dpkg --add-architecture i386 && \
     xvfb x11vnc fluxbox xterm \
     # Process management
     supervisor \
-    # Wine from Ubuntu repos
-    wine wine64 \
+    # Wine32 support for TurboCASH
+    wine32 wine64 \
     # Wine dependencies for Windows apps
-    fonts-wine \
+    winbind fonts-wine \
     # Additional libraries that TurboCASH might need
-    lib32z1 lib32ncurses6 \
+    lib32z1 lib32ncurses6 libc6:i386 libncurses5:i386 libstdc++6:i386 \
     # Web VNC
     novnc websockify \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -42,16 +42,71 @@ RUN printf '[supervisord]\nnodaemon=true\nuser=root\n\n[program:xvfb]\ncommand=/
 USER wineuser
 ENV HOME=/home/wineuser
 
-# Skip Wine initialization for faster builds
-# Wine will be initialized at runtime
-
-# TurboCASH will be downloaded at runtime to avoid slow builds
-
-# Create startup script
+# Download TurboCASH installer
 USER root
-RUN printf '#!/bin/bash\nset -e\necho "Starting Wine container..."\n\n# Initialize Wine at runtime\nsu - wineuser -c "wineboot --init 2>/dev/null || true" &\n\n# Download TurboCASH if not present\nif [ ! -f "/tmp/TurboCASH_Setup.exe" ]; then\n    echo "Downloading TurboCASH..."\n    wget -O /tmp/TurboCASH_Setup.exe "https://sourceforge.net/projects/turbocash/files/latest/download" || true\n    chown wineuser:wineuser /tmp/TurboCASH_Setup.exe || true\nfi\n\n# Install TurboCASH if not already installed\nif [ -f "/tmp/TurboCASH_Setup.exe" ] && \n   [ ! -f "/home/wineuser/.wine/drive_c/Program Files/TurboCASH/TurboCASH.exe" ] && \n   [ ! -f "/home/wineuser/.wine/drive_c/Program Files (x86)/TurboCASH/TurboCASH.exe" ]; then\n    echo "Installing TurboCASH..."\n    su - wineuser -c "wine /tmp/TurboCASH_Setup.exe /SILENT /SP- /NOCANCEL /NORESTART || true"\n    sleep 5\nfi\n\n# Create desktop shortcut for TurboCASH\nsu - wineuser -c "mkdir -p /home/wineuser/Desktop && \nprintf \"[Desktop Entry]\\nVersion=1.0\\nType=Application\\nName=TurboCASH\\nExec=wine \\\"C:/Program Files/TurboCASH/TurboCASH.exe\\\"\\nIcon=applications-office\\nTerminal=false\\nCategories=Office;Finance;\" > /home/wineuser/Desktop/turbocash.desktop && \nchmod +x /home/wineuser/Desktop/turbocash.desktop" || true\n\n# Start supervisor\nexec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf\n' > /startup.sh && chmod +x /startup.sh
+RUN wget -q -O /home/wineuser/TurboCASH_Setup.exe "https://sourceforge.net/projects/turbocash/files/TurboCASH%20Accounting/TurboCASH%205.0.8.0/TurboCASH5_Setup_5.0.8.0.exe/download" || \
+    wget -q -O /home/wineuser/TurboCASH_Setup.exe "https://sourceforge.net/projects/turbocash/files/latest/download" && \
+    chown wineuser:wineuser /home/wineuser/TurboCASH_Setup.exe
+
+# Create startup script  
+USER root
+RUN cat > /startup.sh << 'EOF'
+#!/bin/bash
+set -e
+echo "Starting Wine container..."
+
+# Initialize Wine32 at runtime
+su - wineuser -c "WINEARCH=win32 WINEPREFIX=/home/wineuser/.wine32 wineboot --init 2>/dev/null || true" &
+
+# Wait for Wine initialization
+sleep 10
+
+# Create desktop shortcut for installer
+su - wineuser -c 'cat > /home/wineuser/Desktop/Install_TurboCASH.desktop << EOD
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Install TurboCASH
+Exec=env WINEPREFIX=/home/wineuser/.wine32 wine /home/wineuser/TurboCASH_Setup.exe
+Icon=system-software-install
+Terminal=false
+Categories=System;
+EOD
+chmod +x /home/wineuser/Desktop/Install_TurboCASH.desktop' || true
+
+# Create xterm launcher
+su - wineuser -c 'cat > /home/wineuser/Desktop/Terminal.desktop << EOD
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Terminal
+Exec=xterm
+Icon=utilities-terminal
+Terminal=false
+Categories=System;
+EOD
+chmod +x /home/wineuser/Desktop/Terminal.desktop' || true
+
+# Create file manager launcher  
+su - wineuser -c 'cat > /home/wineuser/Desktop/FileManager.desktop << EOD
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Wine Explorer
+Exec=env WINEPREFIX=/home/wineuser/.wine32 wine explorer
+Icon=folder
+Terminal=false
+Categories=System;
+EOD
+chmod +x /home/wineuser/Desktop/FileManager.desktop' || true
+
+# Start supervisor
+exec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
+EOF
+
+RUN chmod +x /startup.sh
 
 EXPOSE 5900 6080
-VOLUME /home/wineuser/.wine
+VOLUME /home/wineuser/.wine32
 
 ENTRYPOINT ["/startup.sh"]
