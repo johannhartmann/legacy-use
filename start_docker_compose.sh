@@ -10,10 +10,9 @@ else
     export LEGACY_USE_DEBUG=${LEGACY_USE_DEBUG:-1}
 fi
 
-# Default SQLITE_PATH if not specified
-export SQLITE_PATH=${SQLITE_PATH:-$(pwd)/server.db}
 
 echo "Starting legacy-use with Docker Compose..."
+echo "🔄 Container pool enabled - sessions will use existing containers"
 
 # Check if .env.local exists, else create empty file
 if [ ! -f .env.local ]; then
@@ -75,3 +74,8 @@ echo "   docker compose down"
 echo ""
 echo "📊 To view logs:"
 echo "   docker compose logs -f [service-name]"
+
+echo ""
+echo "🔄 Container Pool API endpoints:"
+echo "   - View pool status: curl -H \"X-API-Key: \$LEGACY_USE_API_KEY\" http://localhost:8088/containers/status"
+echo "   - List containers: curl -H \"X-API-Key: \$LEGACY_USE_API_KEY\" http://localhost:8088/containers"
