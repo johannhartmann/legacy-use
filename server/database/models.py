@@ -87,6 +87,9 @@ class Session(Base):
     # Container information
     container_id = Column(String, nullable=True)  # Store Docker container ID
     container_ip = Column(String, nullable=True)  # Store container IP address
+    vnc_port = Column(String, nullable=True)  # Store VNC port for scaled containers
+    novnc_port = Column(String, nullable=True)  # Store noVNC port for scaled containers
+    error_message = Column(TEXT, nullable=True)  # Store error details if session fails
 
     # Relationships
     target = relationship('Target', back_populates='sessions')
