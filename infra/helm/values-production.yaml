@@ -1,0 +1,180 @@
+# Production values for legacy-use
+# This file contains production-specific configuration
+
+# Use production images from GitHub Container Registry
+imagePullSecrets:
+  - name: ghcr-secret
+
+# Management service configuration
+management:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/your-org/legacy-use-mgmt
+    tag: latest
+    pullPolicy: Always
+  env:
+    LEGACY_USE_DEBUG: "0"
+    # ANTHROPIC_API_KEY should be set via secret
+  existingSecret: "legacy-use-secrets"
+  persistence:
+    enabled: true
+    storageClass: "fast-ssd"
+    size: 20Gi
+  resources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 1
+      memory: 1Gi
+
+# Database configuration for production
+database:
+  enabled: true
+  postgresPassword: "changeme"  # Override with secure password
+  persistence:
+    enabled: true
+    storageClass: "fast-ssd"
+    size: 50Gi
+  resources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 1
+      memory: 1Gi
+
+# MCP Server for production
+mcpServer:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: ghcr.io/your-org/legacy-use-mcp-server
+    tag: latest
+    pullPolicy: Always
+  existingSecret: "legacy-use-secrets"
+  resources:
+    limits:
+      cpu: 1
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+# Enable autoscaling in production
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# Production ingress with TLS
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: legacy-use.yourdomain.com
+      paths:
+        - path: /
+          pathType: Prefix
+        - path: /api
+          pathType: Prefix
+        - path: /mcp
+          pathType: Prefix
+  tls:
+    - secretName: legacy-use-tls
+      hosts:
+        - legacy-use.yourdomain.com
+
+# Wine target for production
+wineTarget:
+  enabled: true
+  replicas: 3  # Multiple replicas for load distribution
+  image:
+    repository: ghcr.io/your-org/legacy-use-wine-target
+    tag: latest
+    pullPolicy: Always
+  persistence:
+    enabled: true
+    storageClass: "fast-ssd"
+    wineSize: 50Gi
+    appsSize: 20Gi
+  resources:
+    limits:
+      cpu: 4
+      memory: 4Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+
+# Linux target for production
+linuxTarget:
+  enabled: true
+  replicas: 2
+  image:
+    repository: ghcr.io/your-org/linux-machine
+    tag: latest
+    pullPolicy: Always
+  resources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 1
+      memory: 1Gi
+
+# Android target for production
+androidTarget:
+  enabled: true
+  replicas: 2
+  image:
+    repository: ghcr.io/your-org/legacy-use-android-target
+    tag: latest
+    pullPolicy: Always
+  persistence:
+    enabled: true
+    storageClass: "fast-ssd"
+    androidSize: 30Gi
+    appsSize: 10Gi
+  resources:
+    limits:
+      cpu: 6
+      memory: 6Gi
+    requests:
+      cpu: 4
+      memory: 4Gi
+
+# Windows target for production (if needed)
+windowsTarget:
+  enabled: false
+  image:
+    repository: ghcr.io/your-org/legacy-use-windows-target
+    tag: latest
+    pullPolicy: Always
+  resources:
+    limits:
+      cpu: 8
+      memory: 16Gi
+    requests:
+      cpu: 4
+      memory: 8Gi
+  nodeSelector:
+    node-type: kvm-enabled
+
+# Pod disruption budget for production
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Network policies for production
+networkPolicy:
+  enabled: true
+  ingress:
+    enabled: true
+    allowedNamespaces:
+      - ingress-nginx
+  egress:
+    enabled: true

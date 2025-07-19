@@ -1,5 +1,5 @@
 # Wine Target Configuration for legacy-use
-# Usage: helm install legacy-use . -f values-production.yaml -f values-wine.yaml
+# Usage: helm install legacy-use ./infra/helm -f values-production.yaml -f values-wine.yaml
 
 # Enable Wine target
 wineTarget:

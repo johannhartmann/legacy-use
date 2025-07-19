@@ -16,7 +16,7 @@ This guide shows how to deploy legacy-use with Wine container support on Kuberne
 # helm repo update
 
 # 2. Install with Wine support
-helm install legacy-use . -n legacy-use --create-namespace \
+helm install legacy-use ./infra/helm -n legacy-use --create-namespace \
   -f values-production.yaml \
   -f values-wine.yaml
 

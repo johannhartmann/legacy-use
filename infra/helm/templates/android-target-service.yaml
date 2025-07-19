@@ -1,0 +1,28 @@
+{{- if .Values.androidTarget.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-android-target
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: android-target
+spec:
+  type: {{ .Values.androidTarget.service.type }}
+  ports:
+    - port: {{ .Values.androidTarget.service.adbPort }}
+      targetPort: adb
+      protocol: TCP
+      name: adb
+    - port: {{ .Values.androidTarget.service.vncPort }}
+      targetPort: vnc
+      protocol: TCP
+      name: vnc
+    - port: {{ .Values.androidTarget.service.novncPort }}
+      targetPort: novnc
+      protocol: TCP
+      name: novnc
+  selector:
+    app.kubernetes.io/name: {{ include "legacy-use.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: android-target
+{{- end }}

@@ -19,6 +19,9 @@ spec:
         app.kubernetes.io/name: {{ include "legacy-use.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: android-target
+        {{- with .Values.androidTarget.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -38,10 +41,6 @@ spec:
               value: "{{ .Values.androidTarget.emulatorDevice }}"
             - name: WEB_VNC
               value: "{{ .Values.androidTarget.webVnc }}"
-            - name: DATAPARTITION
-              value: "{{ .Values.androidTarget.dataPartition }}"
-            - name: EMULATOR_NO_BOOT_ANIM
-              value: "{{ .Values.androidTarget.noBootAnim }}"
           ports:
             - name: adb
               containerPort: 5555

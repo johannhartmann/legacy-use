@@ -11,7 +11,7 @@ spec:
     - {{ .Values.wineTarget.persistence.accessMode }}
   resources:
     requests:
-      storage: {{ .Values.wineTarget.persistence.size }}
+      storage: {{ .Values.wineTarget.persistence.wineSize }}
   {{- if .Values.wineTarget.persistence.storageClass }}
   storageClassName: {{ .Values.wineTarget.persistence.storageClass }}
   {{- end }}
@@ -28,7 +28,7 @@ spec:
     - {{ .Values.wineTarget.persistence.accessMode }}
   resources:
     requests:
-      storage: {{ .Values.wineTarget.persistence.size }}
+      storage: {{ .Values.wineTarget.persistence.appsSize }}
   {{- if .Values.wineTarget.persistence.storageClass }}
   storageClassName: {{ .Values.wineTarget.persistence.storageClass }}
   {{- end }}

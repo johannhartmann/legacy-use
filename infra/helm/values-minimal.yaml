@@ -1,0 +1,58 @@
+# Minimal values for legacy-use
+# This file contains the bare minimum configuration to run legacy-use
+
+# Only enable core services
+management:
+  env:
+    LEGACY_USE_DEBUG: "0"
+
+database:
+  enabled: true
+  persistence:
+    enabled: false  # Use emptyDir for minimal setup
+
+mcpServer:
+  enabled: false  # Disable MCP server for minimal setup
+
+# Disable all targets by default
+wineTarget:
+  enabled: false
+
+linuxTarget:
+  enabled: false
+
+androidTarget:
+  enabled: false
+
+windowsTarget:
+  enabled: false
+
+# Simple ingress
+ingress:
+  enabled: true
+  hosts:
+    - host: legacy-use.local
+      paths:
+        - path: /
+          pathType: Prefix
+        - path: /api
+          pathType: Prefix
+
+# Minimal resources
+management:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+database:
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi

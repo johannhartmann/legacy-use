@@ -25,27 +25,56 @@ spec:
       serviceAccountName: {{ include "legacy-use.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.mcpServer.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: wait-for-mgmt
+          image: busybox:1.36
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for management API to be ready..."
+              until wget -q --spider http://{{ include "legacy-use.fullname" . }}-mgmt:{{ .Values.management.service.backendPort }}/health; do
+                echo "Management API not ready yet, waiting..."
+                sleep 5
+              done
+              echo "Management API is ready!"
       containers:
         - name: mcp-server
           securityContext:
             {{- toYaml .Values.mcpServer.securityContext | nindent 12 }}
           image: "{{ .Values.mcpServer.image.repository }}:{{ .Values.mcpServer.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.mcpServer.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.mcpServer.service.port }}
+              protocol: TCP
           env:
             - name: DATABASE_URL
-              value: "postgresql://{{ .Values.postgresql.postgresqlUsername }}:{{ .Values.postgresql.postgresqlPassword }}@{{ include "legacy-use.fullname" . }}-postgresql:5432/{{ .Values.postgresql.postgresqlDatabase }}"
+              {{- if .Values.database.enabled }}
+              value: "postgresql://{{ .Values.database.postgresUser }}:{{ .Values.database.postgresPassword }}@{{ include "legacy-use.fullname" . }}-database:5432/{{ .Values.database.postgresDatabase }}"
+              {{- else if .Values.mcpServer.env.DATABASE_URL }}
+              value: {{ .Values.mcpServer.env.DATABASE_URL | quote }}
+              {{- end }}
             - name: LEGACY_USE_URL
-              value: "http://{{ include "legacy-use.fullname" . }}-backend:{{ .Values.backend.service.port }}"
+              value: "http://{{ include "legacy-use.fullname" . }}-mgmt:{{ .Values.management.service.backendPort }}"
             - name: LEGACY_USE_API_KEY
+              {{- if .Values.mcpServer.env.LEGACY_USE_API_KEY }}
+              value: {{ .Values.mcpServer.env.LEGACY_USE_API_KEY | quote }}
+              {{- else if .Values.mcpServer.existingSecret }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "legacy-use.fullname" . }}-api-key
-                  key: api-key
-                  optional: true
+                  name: {{ .Values.mcpServer.existingSecret }}
+                  key: legacy-use-api-key
+              {{- end }}
             - name: LOG_LEVEL
               value: {{ .Values.mcpServer.logLevel | quote }}
             - name: SYNC_INTERVAL
               value: {{ .Values.mcpServer.syncInterval | quote }}
+            - name: MCP_SERVER_HOST
+              value: "0.0.0.0"
+            - name: MCP_SERVER_PORT
+              value: {{ .Values.mcpServer.service.port | quote }}
+            - name: MCP_SERVER_PATH
+              value: "/mcp"
             {{- with .Values.mcpServer.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

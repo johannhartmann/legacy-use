@@ -19,6 +19,9 @@ spec:
         app.kubernetes.io/name: {{ include "legacy-use.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: linux-target
+        {{- with .Values.linuxTarget.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -38,7 +41,7 @@ spec:
               containerPort: 5900
               protocol: TCP
             - name: novnc
-              containerPort: 6080
+              containerPort: 80
               protocol: TCP
           resources:
             {{- toYaml .Values.linuxTarget.resources | nindent 12 }}

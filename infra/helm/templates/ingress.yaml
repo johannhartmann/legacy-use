@@ -31,15 +31,24 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "legacy-use.fullname" $root }}-frontend
+                name: {{ include "legacy-use.fullname" $root }}-mgmt
                 port:
-                  number: {{ $root.Values.frontend.service.port }}
+                  number: {{ $root.Values.management.service.frontendPort }}
           - path: /api
             pathType: Prefix
             backend:
               service:
-                name: {{ include "legacy-use.fullname" $root }}-backend
+                name: {{ include "legacy-use.fullname" $root }}-mgmt
                 port:
-                  number: {{ $root.Values.backend.service.port }}
+                  number: {{ $root.Values.management.service.backendPort }}
+          {{- if $root.Values.mcpServer.enabled }}
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "legacy-use.fullname" $root }}-mcp-server
+                port:
+                  number: {{ $root.Values.mcpServer.service.port }}
+          {{- end }}
     {{- end }}
 {{- end }}

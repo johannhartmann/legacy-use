@@ -1,0 +1,22 @@
+{{- if and .Values.management.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-mgmt-data
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: management
+spec:
+  accessModes:
+    - {{ .Values.management.persistence.accessMode }}
+  {{- if .Values.management.persistence.storageClass }}
+  {{- if (eq "-" .Values.management.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.management.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.management.persistence.size }}
+{{- end }}

@@ -1,28 +1,24 @@
-{{- if .Values.androidTarget.enabled -}}
+{{- if .Values.wineTarget.enabled -}}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "legacy-use.fullname" . }}-android-target
+  name: {{ include "legacy-use.fullname" . }}-wine-target
   labels:
     {{- include "legacy-use.labels" . | nindent 4 }}
-    app.kubernetes.io/component: android-target
+    app.kubernetes.io/component: wine-target
 spec:
-  type: {{ .Values.androidTarget.service.type }}
+  type: {{ .Values.wineTarget.service.type }}
   ports:
-    - port: 5555
-      targetPort: adb
-      protocol: TCP
-      name: adb
-    - port: 5900
+    - port: {{ .Values.wineTarget.service.vncPort }}
       targetPort: vnc
       protocol: TCP
       name: vnc
-    - port: 6080
+    - port: {{ .Values.wineTarget.service.novncPort }}
       targetPort: novnc
       protocol: TCP
       name: novnc
   selector:
     app.kubernetes.io/name: {{ include "legacy-use.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/component: android-target
+    app.kubernetes.io/component: wine-target
 {{- end }}

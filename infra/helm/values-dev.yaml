@@ -1,0 +1,110 @@
+# Development environment values for legacy-use
+# This file contains overrides for local development
+
+# Enable debug mode
+management:
+  env:
+    LEGACY_USE_DEBUG: "1"
+  
+  # Use local images
+  image:
+    repository: legacy-use-mgmt
+    tag: "local"
+    pullPolicy: Never
+
+# Database configuration for development
+database:
+  enabled: true
+  persistence:
+    enabled: false  # Use emptyDir for development
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# MCP Server for development
+mcpServer:
+  enabled: true
+  image:
+    repository: legacy-use-mcp-server
+    tag: "local"
+    pullPolicy: Never
+  logLevel: "DEBUG"
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Ingress for local development
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+    - host: legacy-use.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+        - path: /api
+          pathType: Prefix
+        - path: /mcp
+          pathType: Prefix
+
+# Enable all targets for development
+wineTarget:
+  enabled: true
+  replicas: 1
+  image:
+    repository: legacy-use-wine-target
+    tag: "local"
+    pullPolicy: Never
+  persistence:
+    enabled: false  # Use emptyDir for development
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+linuxTarget:
+  enabled: true
+  replicas: 1
+  image:
+    repository: linux-machine
+    tag: "local"
+    pullPolicy: Never
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+androidTarget:
+  enabled: true
+  replicas: 1
+  image:
+    repository: legacy-use-android-target
+    tag: "local"
+    pullPolicy: Never
+  persistence:
+    enabled: false  # Use emptyDir for development
+  resources:
+    limits:
+      cpu: 1
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+# Disable Windows target by default (requires KVM)
+windowsTarget:
+  enabled: false

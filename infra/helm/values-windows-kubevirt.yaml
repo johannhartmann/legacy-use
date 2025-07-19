@@ -1,0 +1,104 @@
+# Windows KubeVirt VM values for legacy-use
+# This file contains configuration for running Windows VMs with KubeVirt
+
+# Disable Docker-based Windows target
+windowsTarget:
+  enabled: false
+
+# Enable KubeVirt-based Windows VM
+windowsKubevirt:
+  enabled: true
+  running: true
+  
+  # VM configuration
+  hostname: "legacy-win-vm"
+  cpu:
+    cores: 4
+  memory: "8Gi"
+  
+  # Labels for the VM
+  labels:
+    legacy-use.target-type: "windows-vm"
+    legacy-use.scalable: "false"
+    legacy-use.platform: "kubevirt"
+  
+  # Persistence configuration
+  persistence:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: "100Gi"
+    # storageClass: "fast-ssd"  # Uncomment and set your storage class
+  
+  # DataVolume for Windows image (CDI)
+  dataVolumeTemplate:
+    enabled: true
+    source:
+      # Option 1: HTTP source (uncomment and set URL)
+      # http:
+      #   url: "https://example.com/windows-11.qcow2"
+      
+      # Option 2: Registry source (uncomment and set)
+      # registry:
+      #   url: "docker://quay.io/kubevirt/windows:11"
+      
+      # Option 3: Use existing PVC (uncomment and set)
+      pvc:
+        name: "windows-11-golden-image"
+        namespace: "default"
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    rdpPort: 3389
+    vncPort: 5900
+  
+  # Cloud-init user data for Windows (requires cloudbase-init in image)
+  userData: |
+    #ps1_sysnative
+    # Set Administrator password
+    $Password = ConvertTo-SecureString "LegacyPass123!" -AsPlainText -Force
+    $UserAccount = Get-LocalUser -Name "Administrator"
+    $UserAccount | Set-LocalUser -Password $Password
+    
+    # Enable RDP
+    Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+    Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+    
+    # Set hostname
+    Rename-Computer -NewName "legacy-win-vm" -Force
+  
+  # Node selector for VMs (ensure nodes have KubeVirt)
+  nodeSelector: {}
+    # kubernetes.io/hostname: node-with-kubevirt
+    # node.kubernetes.io/instance-type: m5.2xlarge
+  
+  # Tolerations for VMs
+  tolerations: []
+  
+  # Affinity rules
+  affinity: {}
+    # podAntiAffinity:
+    #   preferredDuringSchedulingIgnoredDuringExecution:
+    #   - weight: 100
+    #     podAffinityTerm:
+    #       labelSelector:
+    #         matchExpressions:
+    #         - key: legacy-use.target-type
+    #           operator: In
+    #           values:
+    #           - windows-vm
+    #       topologyKey: kubernetes.io/hostname
+
+# Optionally expose via ingress
+ingress:
+  enabled: true
+  hosts:
+    - host: legacy-use-windows.local
+      paths:
+        - path: /vnc
+          pathType: Prefix
+          backend:
+            service:
+              name: legacy-use-windows-vm
+              port:
+                number: 5900

@@ -1,5 +1,5 @@
 # Example values for deploying Legacy Use with Windows target
-# Usage: helm install legacy-use . -f values-production.yaml -f values-windows-example.yaml
+# Usage: helm install legacy-use ./infra/helm -f values-production.yaml -f values-windows-example.yaml
 
 # Enable Windows target
 windowsTarget:

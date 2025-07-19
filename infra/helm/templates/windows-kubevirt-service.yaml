@@ -1,0 +1,23 @@
+{{- if .Values.windowsKubevirt.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-windows-kubevirt
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: windows-kubevirt
+spec:
+  type: {{ .Values.windowsKubevirt.service.type }}
+  ports:
+    - port: {{ .Values.windowsKubevirt.service.rdpPort }}
+      targetPort: 3389
+      protocol: TCP
+      name: rdp
+    - port: {{ .Values.windowsKubevirt.service.vncPort }}
+      targetPort: 5900
+      protocol: TCP
+      name: vnc
+  selector:
+    {{- include "legacy-use.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: windows-kubevirt
+{{- end }}

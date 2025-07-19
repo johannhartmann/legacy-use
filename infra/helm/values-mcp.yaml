@@ -1,5 +1,5 @@
 # Example values file for enabling MCP server
-# Use with: helm install legacy-use ./helm -f helm/values-mcp.yaml
+# Use with: helm install legacy-use ./infra/helm -f infra/helm/values-mcp.yaml
 
 # Enable the MCP server
 mcpServer:

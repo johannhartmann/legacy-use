@@ -1,0 +1,19 @@
+apiVersion: v2
+name: legacy-use
+description: A Helm chart for deploying Legacy-use - Turn legacy applications into modern REST APIs
+type: application
+version: 0.3.0
+appVersion: "1.0.0"
+keywords:
+  - legacy-use
+  - automation
+  - api
+  - legacy-applications
+  - vnc
+  - rdp
+home: https://github.com/your-org/legacy-use
+sources:
+  - https://github.com/your-org/legacy-use
+maintainers:
+  - name: Legacy-use Team
+    email: team@legacy-use.com

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-config
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+data:
+  # Legacy-use Management configuration
+  LEGACY_USE_DEBUG: {{ .Values.management.env.LEGACY_USE_DEBUG | quote }}
+  
+  # Database configuration (if not using internal database)
+  {{- if and (not .Values.database.enabled) .Values.management.env.DATABASE_URL }}
+  DATABASE_URL: {{ .Values.management.env.DATABASE_URL | quote }}
+  {{- end }}
+  
+  # MCP Server configuration
+  {{- if .Values.mcpServer.enabled }}
+  MCP_LOG_LEVEL: {{ .Values.mcpServer.logLevel | quote }}
+  MCP_SYNC_INTERVAL: {{ .Values.mcpServer.syncInterval | quote }}
+  {{- end }}

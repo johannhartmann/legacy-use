@@ -1,0 +1,409 @@
+# Default values for legacy-use.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Global settings
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Service Account
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# Database Configuration (PostgreSQL)
+database:
+  enabled: true
+  image:
+    repository: postgres
+    pullPolicy: IfNotPresent
+    tag: "15-alpine"
+  
+  postgresUser: postgres
+  postgresPassword: postgres
+  postgresDatabase: legacy_use_demo
+  
+  service:
+    type: ClusterIP
+    port: 5432
+  
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 10Gi
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  
+  podSecurityContext: {}
+  
+  securityContext: {}
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Legacy-use Management Service (combined backend + frontend)
+management:
+  replicaCount: 1
+  
+  image:
+    repository: legacy-use-mgmt
+    pullPolicy: IfNotPresent
+    tag: "local"
+  
+  service:
+    type: ClusterIP
+    backendPort: 8088
+    frontendPort: 5173
+  
+  env:
+    LEGACY_USE_DEBUG: "0"
+    # DATABASE_URL is auto-generated if database.enabled is true
+    # Otherwise specify it here:
+    # DATABASE_URL: "postgresql://user:password@host:port/database"
+    # ANTHROPIC_API_KEY: "your-api-key"
+  
+  # Reference to existing secret for sensitive data
+  # existingSecret: "legacy-use-secrets"
+  
+  # Additional environment variables
+  extraEnv: []
+  
+  persistence:
+    enabled: false
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 5Gi
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  
+  podSecurityContext: {}
+  
+  securityContext: {}
+  
+  podAnnotations: {}
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# MCP Server Configuration
+mcpServer:
+  enabled: true
+  replicaCount: 1
+  
+  image:
+    repository: legacy-use-mcp-server
+    pullPolicy: IfNotPresent
+    tag: "local"
+  
+  service:
+    type: ClusterIP
+    port: 3000
+  
+  # MCP server configuration
+  logLevel: "INFO"
+  syncInterval: "30"
+  
+  env:
+    # DATABASE_URL is auto-generated if database.enabled is true
+    # LEGACY_USE_URL is auto-generated
+    # LEGACY_USE_API_KEY: "your-api-key"
+  
+  # Reference to existing secret for sensitive data
+  # existingSecret: "legacy-use-secrets"
+  
+  # Additional environment variables
+  extraEnv: []
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+  
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Main Ingress Configuration
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: legacy-use.local
+      paths:
+        - path: /
+          pathType: Prefix
+        - path: /api
+          pathType: Prefix
+        - path: /mcp
+          pathType: Prefix
+  tls: []
+  #  - secretName: legacy-use-tls
+  #    hosts:
+  #      - legacy-use.local
+
+# Wine Target Configuration (Lightweight Windows app support)
+wineTarget:
+  enabled: true
+  replicas: 1
+  
+  image:
+    repository: legacy-use-wine-target
+    pullPolicy: IfNotPresent
+    tag: "local"
+  
+  # Wine configuration
+  wineArch: "win64"  # win32 or win64
+  
+  labels:
+    legacy-use.target-type: "wine"
+    legacy-use.scalable: "true"
+  
+  service:
+    type: ClusterIP
+    vncPort: 5900
+    novncPort: 6080
+  
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    wineSize: 10Gi
+    appsSize: 5Gi
+  
+  resources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  podSecurityContext: {}
+  securityContext: {}
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts: []
+    tls: []
+
+# Linux Target Configuration
+linuxTarget:
+  enabled: true
+  replicas: 1
+  
+  image:
+    repository: linux-machine
+    pullPolicy: IfNotPresent
+    tag: "local"
+  
+  labels:
+    legacy-use.target-type: "linux"
+    legacy-use.scalable: "true"
+  
+  service:
+    type: ClusterIP
+    vncPort: 5900
+    novncPort: 80
+  
+  resources:
+    limits:
+      cpu: 1
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  podSecurityContext: {}
+  securityContext: {}
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Android Target Configuration
+androidTarget:
+  enabled: true
+  replicas: 1
+  
+  image:
+    repository: legacy-use-android-target
+    pullPolicy: IfNotPresent
+    tag: "local"
+  
+  labels:
+    legacy-use.target-type: "android"
+    legacy-use.scalable: "true"
+  
+  # Android emulator configuration
+  emulatorDevice: "Samsung Galaxy S10"
+  webVnc: "true"
+  
+  service:
+    type: ClusterIP
+    adbPort: 5555
+    vncPort: 5900
+    novncPort: 6080
+  
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    androidSize: 20Gi
+    appsSize: 5Gi
+  
+  resources:
+    limits:
+      cpu: 4
+      memory: 4Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+  
+  podSecurityContext:
+    privileged: true
+  
+  securityContext:
+    privileged: true
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts: []
+    tls: []
+
+# Windows KubeVirt VM Configuration (Requires KubeVirt in cluster)
+windowsKubevirt:
+  enabled: false
+  replicas: 1  # Number of Windows VM instances
+  
+  # VM configuration
+  hostname: "legacy-win"
+  cpu:
+    cores: 4
+  memory: "8Gi"
+  
+  # Labels for the VMs
+  labels:
+    legacy-use.target-type: "windows-vm"
+    legacy-use.scalable: "true"
+  
+  # Disk configuration
+  # Option 1: Use ephemeral disk (creates new disk for each VM instance)
+  ephemeralDisk: false
+  # Option 2: Use containerDisk (recommended for scaling)
+  containerDiskImage: "quay.io/kubevirt/windows11:latest"
+  
+  # Persistence configuration (for ephemeral disk template)
+  persistence:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: "100Gi"
+    storageClass: ""
+  
+  # DataVolume for Windows image (CDI) - used with ephemeral disk
+  dataVolumeTemplate:
+    enabled: false  # Enable if you want to import Windows image
+    source:
+      # Option 1: HTTP source
+      http:
+        url: ""  # URL to Windows ISO or qcow2 image
+      # Option 2: Registry source
+      # registry:
+      #   url: "docker://quay.io/kubevirt/windows:latest"
+      # Option 3: PVC source
+      # pvc:
+      #   name: "windows-golden-image"
+      #   namespace: "default"
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    rdpPort: 3389
+    vncPort: 5900
+  
+  # Cloud-init user data (optional)
+  userData: |
+    # Add any cloud-init configuration here
+    # Note: Windows requires cloudbase-init
+  
+  # Node selector for VMs
+  nodeSelector: {}
+    # kubernetes.io/hostname: node-with-kubevirt
+  
+  # Tolerations for VMs
+  tolerations: []
+  
+  # Affinity rules
+  affinity: {}
+
+# Autoscaling Configuration (for management service)
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# Network policies
+networkPolicy:
+  enabled: false
+  ingress:
+    enabled: true
+    allowedPods: []
+    allowedNamespaces: []
+  egress:
+    enabled: true
+    allowedPods: []
+    allowedNamespaces: []

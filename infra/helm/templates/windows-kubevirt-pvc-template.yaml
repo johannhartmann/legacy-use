@@ -1,0 +1,28 @@
+{{- if and .Values.windowsKubevirt.enabled .Values.windowsKubevirt.ephemeralDisk -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-windows-disk-template
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: windows-kubevirt
+spec:
+  accessModes:
+    - {{ .Values.windowsKubevirt.persistence.accessMode }}
+  {{- if .Values.windowsKubevirt.persistence.storageClass }}
+  {{- if (eq "-" .Values.windowsKubevirt.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.windowsKubevirt.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.windowsKubevirt.persistence.size }}
+  {{- if .Values.windowsKubevirt.dataVolumeTemplate.enabled }}
+  dataSource:
+    name: {{ include "legacy-use.fullname" . }}-windows-dv
+    kind: DataVolume
+    apiGroup: cdi.kubevirt.io
+  {{- end }}
+{{- end }}
