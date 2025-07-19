@@ -7,23 +7,20 @@ import logging
 import os
 from datetime import datetime, timedelta
 
-import sentry_sdk
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from sentry_sdk.integrations.asyncio import AsyncioIntegration
-from sentry_sdk.integrations.fastapi import FastApiIntegration
 from starlette.status import HTTP_401_UNAUTHORIZED
 
 from server.computer_use import APIProvider
 from server.database import db
 from server.routes import api_router, job_router, target_router
+from server.routes.containers import container_router
 from server.routes.diagnostics import diagnostics_router
 from server.routes.sessions import session_router, websocket_router
 from server.routes.settings import settings_router
 from server.utils.auth import get_api_key
 from server.utils.job_execution import job_queue_initializer
 from server.utils.session_monitor import start_session_monitor
-from server.utils.telemetry import posthog_middleware
 
 from .settings import settings
 
@@ -33,28 +30,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize Sentry
-if settings.API_SENTRY_DSN:
-    sentry_sdk.init(
-        dsn=settings.API_SENTRY_DSN,
-        integrations=[
-            FastApiIntegration(),
-            AsyncioIntegration(),
-        ],
-        # Set traces_sample_rate to 1.0 to capture 100%
-        # of transactions for performance monitoring.
-        traces_sample_rate=0.0,
-        # Set profiles_sample_rate to 1.0 to profile 100%
-        # of sampled transactions.
-        profiles_sample_rate=0.0,
-        # Environment
-        environment=settings.ENVIRONMENT,
-    )
-    logger.info('Sentry initialized for backend')
-else:
-    logger.warning(
-        'API_SENTRY_DSN not found in environment variables. Sentry is disabled.'
-    )
 
 
 # Handle provider-specific environment variables
@@ -102,9 +77,18 @@ app = FastAPI(
 )
 
 
-@app.middleware('http')
-async def telemetry_middleware(request: Request, call_next):
-    return await posthog_middleware(request, call_next)
+@app.get('/health')
+async def health_check():
+    """Health check endpoint for container readiness/liveness probes."""
+    try:
+        # Check database connection
+        db.list_targets()
+        return {'status': 'healthy', 'database': 'connected'}
+    except Exception as e:
+        logger.error(f'Health check failed: {e}')
+        raise HTTPException(status_code=500, detail=f'Database check failed: {str(e)}')
+
+
 
 
 @app.middleware('http')
@@ -117,9 +101,11 @@ async def auth_middleware(request: Request, call_next):
 
     # auth whitelist (regex patterns)
     whitelist_patterns = [
+        r'^/health$',  # Health check endpoint
         r'^/favicon\.ico$',  # Favicon requests
         r'^/robots\.txt$',  # Robots.txt requests
         r'^/sitemap\.xml$',  # Sitemap requests
+        r'^/sessions/.+/vnc/websockify$',  # VNC WebSocket connections (auth handled in endpoint)
     ]
 
     if settings.SHOW_DOCS:
@@ -213,6 +199,12 @@ app.include_router(
 
 # Include settings router
 app.include_router(settings_router)
+
+# Include container pool router (always enabled for scaling)
+app.include_router(
+    container_router,
+    include_in_schema=not settings.HIDE_INTERNAL_API_ENDPOINTS_IN_DOC,
+)
 
 
 # Scheduled task to prune old logs

@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-mgmt
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: management
+spec:
+  replicas: {{ .Values.management.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "legacy-use.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: management
+  template:
+    metadata:
+      {{- with .Values.management.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "legacy-use.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: management
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "legacy-use.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.management.podSecurityContext | nindent 8 }}
+      {{- if .Values.database.enabled }}
+      initContainers:
+        - name: wait-for-database
+          image: busybox:1.36
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for database to be ready..."
+              until nc -z {{ include "legacy-use.fullname" . }}-database 5432; do
+                echo "Database not ready yet, waiting..."
+                sleep 2
+              done
+              echo "Database is ready!"
+      {{- end }}
+      containers:
+        - name: management
+          securityContext:
+            {{- toYaml .Values.management.securityContext | nindent 12 }}
+          image: "{{ .Values.management.image.repository }}:{{ .Values.management.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.management.image.pullPolicy }}
+          ports:
+            - name: backend
+              containerPort: 8088
+              protocol: TCP
+            - name: frontend
+              containerPort: 5173
+              protocol: TCP
+          env:
+            - name: LEGACY_USE_DEBUG
+              value: {{ .Values.management.env.LEGACY_USE_DEBUG | quote }}
+            - name: DATABASE_URL
+              {{- if .Values.database.enabled }}
+              value: "postgresql://{{ .Values.database.postgresUser }}:{{ .Values.database.postgresPassword }}@{{ include "legacy-use.fullname" . }}-database:5432/{{ .Values.database.postgresDatabase }}"
+              {{- else if .Values.management.env.DATABASE_URL }}
+              value: {{ .Values.management.env.DATABASE_URL | quote }}
+              {{- end }}
+            - name: ANTHROPIC_API_KEY
+              {{- if .Values.management.env.ANTHROPIC_API_KEY }}
+              value: {{ .Values.management.env.ANTHROPIC_API_KEY | quote }}
+              {{- else if .Values.management.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.management.existingSecret }}
+                  key: anthropic-api-key
+              {{- end }}
+            {{- with .Values.management.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: /health
+              port: backend
+            initialDelaySeconds: 120
+            periodSeconds: 15
+            timeoutSeconds: 60
+            successThreshold: 1
+            failureThreshold: 16  # 240 seconds total for startup
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: backend
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: backend
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.management.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.management.persistence.enabled }}
+            - name: data
+              mountPath: /home/legacy-use-mgmt/data
+            {{- end }}
+      volumes:
+        {{- if .Values.management.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "legacy-use.fullname" . }}-mgmt-data
+        {{- end }}
+      {{- with .Values.management.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.management.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.management.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -26,7 +26,7 @@ class DatabaseService:
             db_url = settings.DATABASE_URL
 
         self.engine = create_engine(db_url)
-        Base.metadata.create_all(self.engine)
+        # Don't create tables here - let Alembic handle all schema management
         self.Session = sessionmaker(bind=self.engine)
 
     # Target methods

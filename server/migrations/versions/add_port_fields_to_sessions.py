@@ -17,14 +17,24 @@ depends_on = None
 
 
 def upgrade():
-    # Add vnc_port column to sessions table
-    op.add_column('sessions', sa.Column('vnc_port', sa.String(10), nullable=True))
+    # Get database connection
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
     
-    # Add novnc_port column to sessions table
-    op.add_column('sessions', sa.Column('novnc_port', sa.String(10), nullable=True))
+    # Get existing columns
+    columns = [col['name'] for col in inspector.get_columns('sessions')]
     
-    # Add error_message column to sessions table for better error tracking
-    op.add_column('sessions', sa.Column('error_message', sa.Text, nullable=True))
+    # Add vnc_port column to sessions table if it doesn't exist
+    if 'vnc_port' not in columns:
+        op.add_column('sessions', sa.Column('vnc_port', sa.String(10), nullable=True))
+    
+    # Add novnc_port column to sessions table if it doesn't exist
+    if 'novnc_port' not in columns:
+        op.add_column('sessions', sa.Column('novnc_port', sa.String(10), nullable=True))
+    
+    # Add error_message column to sessions table for better error tracking if it doesn't exist
+    if 'error_message' not in columns:
+        op.add_column('sessions', sa.Column('error_message', sa.Text, nullable=True))
 
 
 def downgrade():
