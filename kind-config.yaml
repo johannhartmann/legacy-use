@@ -1,0 +1,90 @@
+# Kind cluster configuration with local registry and KubeVirt support
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+# Configure registry for all nodes
+containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".registry]
+      config_path = "/etc/containerd/certs.d"
+nodes:
+  # Control plane node
+  - role: control-plane
+    # KubeVirt needs access to /dev for device plugins
+    extraMounts:
+      - hostPath: /dev
+        containerPath: /dev
+      - hostPath: /boot
+        containerPath: /boot
+        readOnly: true
+      - hostPath: /lib/modules
+        containerPath: /lib/modules
+        readOnly: true
+    # Extra port mappings for accessing VMs
+    extraPortMappings:
+      # NodePort range for VM services
+      - containerPort: 30000
+        hostPort: 30000
+        protocol: TCP
+      - containerPort: 30001
+        hostPort: 30001
+        protocol: TCP
+      - containerPort: 30002
+        hostPort: 30002
+        protocol: TCP
+      - containerPort: 30003
+        hostPort: 30003
+        protocol: TCP
+      - containerPort: 30004
+        hostPort: 30004
+        protocol: TCP
+      # VNC ports for direct VM access
+      - containerPort: 5900
+        hostPort: 5900
+        protocol: TCP
+      - containerPort: 5901
+        hostPort: 5901
+        protocol: TCP
+      - containerPort: 5902
+        hostPort: 5902
+        protocol: TCP
+      # Backend API port
+      - containerPort: 30088
+        hostPort: 8088
+        protocol: TCP
+      # Frontend port
+      - containerPort: 30173
+        hostPort: 5173
+        protocol: TCP
+  # Worker node for running VMs
+  - role: worker
+    extraMounts:
+      - hostPath: /dev
+        containerPath: /dev
+      - hostPath: /boot
+        containerPath: /boot
+        readOnly: true
+      - hostPath: /lib/modules
+        containerPath: /lib/modules
+        readOnly: true
+# Networking configuration
+networking:
+  # Use the default CNI (kindnet)
+  disableDefaultCNI: false
+  # Custom API server port to avoid conflicts
+  apiServerPort: 6443
+# Feature gates for KubeVirt compatibility
+kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        # Enable features needed by KubeVirt
+        feature-gates: "KubeletInUserNamespace=true"
+        # Increase max pods per node for VM workloads
+        max-pods: "110"
+  - |
+    kind: ClusterConfiguration
+    apiServer:
+      extraArgs:
+        # Enable features needed by KubeVirt
+        feature-gates: "KubeletInUserNamespace=true"

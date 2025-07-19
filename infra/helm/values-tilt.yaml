@@ -1,0 +1,177 @@
+# Values for Tilt development with local registry
+# This overrides default values.yaml for local development
+
+# Use local registry for all images
+global:
+  imageRegistry: localhost:5000
+
+# Database configuration
+database:
+  enabled: true
+  persistence:
+    enabled: true  # Use PVC for database storage
+    storageClass: ""  # Use default storage class
+    accessMode: ReadWriteOnce
+    size: 5Gi  # Smaller size for development
+  
+  # No security context - let PostgreSQL handle its own permissions
+  podSecurityContext: {}
+  securityContext: {}
+  
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Management service with hot reload
+management:
+  replicaCount: 1
+  image:
+    repository: localhost:5000/legacy-use-mgmt
+    tag: latest
+    pullPolicy: Always
+  
+  env:
+    LEGACY_USE_DEBUG: "0"  # Disable reload for now - it's causing issues in Kind
+    # ANTHROPIC_API_KEY will be set via --set flag from Tiltfile
+  
+  # Mount source code for hot reload in development
+  # NOTE: Disabled for Kind - host paths don't exist on Kind nodes
+  extraVolumes: []
+    # - name: server-code
+    #   hostPath:
+    #     path: /data/src/legacy-use/server
+    #     type: Directory
+    # - name: app-code
+    #   hostPath:
+    #     path: /data/src/legacy-use/app
+    #     type: Directory
+    # - name: docker-sock
+    #   hostPath:
+    #     path: /var/run/docker.sock
+    #     type: Socket
+  
+  extraVolumeMounts: []
+    # - name: server-code
+    #   mountPath: /home/legacy-use-mgmt/server
+    # - name: app-code
+    #   mountPath: /home/legacy-use-mgmt/app
+    # - name: docker-sock
+    #   mountPath: /var/run/docker.sock
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+# MCP Server
+mcpServer:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: localhost:5000/legacy-use-mcp-server
+    tag: latest
+    pullPolicy: Always
+  
+  env:
+    # LEGACY_USE_API_KEY will be set via --set flag from Tiltfile
+    LEGACY_USE_API_KEY: ""
+  
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Targets with reduced resources for development
+wineTarget:
+  enabled: true
+  replicas: 1
+  image:
+    repository: localhost:5000/legacy-use-wine-target
+    tag: latest
+    pullPolicy: Always
+  
+  persistence:
+    enabled: false  # Use ephemeral storage for development
+  
+  resources:
+    limits:
+      cpu: 1
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+linuxTarget:
+  enabled: true
+  replicas: 1
+  image:
+    repository: localhost:5000/linux-machine
+    tag: latest
+    pullPolicy: Always
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+androidTarget:
+  enabled: true
+  replicas: 1
+  image:
+    repository: localhost:5000/legacy-use-android-target
+    tag: latest
+    pullPolicy: Always
+  
+  persistence:
+    enabled: false  # Use ephemeral storage for development
+  
+  resources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 1
+      memory: 1Gi
+
+# Windows KubeVirt VM (optional - requires KubeVirt)
+windowsKubevirt:
+  enabled: false  # Enable manually if KubeVirt is available
+  replicas: 1
+  
+  # Use minimal resources for development
+  cpu:
+    cores: 2
+  memory: "4Gi"
+  
+  # Use ephemeral disk for development
+  ephemeralDisk: true
+  persistence:
+    size: "50Gi"
+  
+  # Or use a lightweight Windows container disk
+  containerDiskImage: "quay.io/kubevirt/windows10:latest"
+
+# Disable ingress for local development
+ingress:
+  enabled: false
+
+# Disable autoscaling for development
+autoscaling:
+  enabled: false
+
+# Development-specific service configuration
+# Use NodePort for easier access from host
+# (Removed duplicate service configurations as they should be in the main sections above)
