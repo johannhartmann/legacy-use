@@ -4,8 +4,17 @@
 # Fail fast on errors
 update_settings(max_parallel_updates=3)
 
-# Configure file watching to ignore temp files
-watch_settings(ignore=['/tmp/**', '/var/tmp/**'])
+# Configure file watching to ignore temp files and VM images
+watch_settings(ignore=[
+    '/tmp/**', 
+    '/var/tmp/**', 
+    'vms/**', 
+    '*.qcow2', 
+    '*.iso',
+    'infra/docker/*/output/**',
+    'infra/docker/legacy-use-windows-image-builder/output/**',
+    '**/*.log'
+])
 
 # Load extensions
 load('ext://restart_process', 'docker_build_with_restart')
@@ -15,6 +24,15 @@ load('ext://helm_resource', 'helm_resource', 'helm_repo')
 k8s_namespace = 'legacy-use'
 # Using local registry on standard port
 local_registry = 'localhost:5000'
+
+# Windows KubeVirt detection - check if KubeVirt is available
+kubevirt_check = str(local('kubectl get crd virtualmachines.kubevirt.io 2>/dev/null || echo "not-found"', quiet=True))
+kubevirt_installed = "not-found" not in kubevirt_check
+
+if not kubevirt_installed:
+    print("KubeVirt not detected - Windows VM target will not be available")
+else:
+    print("KubeVirt detected - Windows VM target will be available")
 
 # Ensure namespace exists
 k8s_yaml(blob("""
@@ -89,12 +107,15 @@ mcpServer:
 override_file = '/var/tmp/tilt-values-override.yaml'
 local('echo \'{}\' > {}'.format(values_override, override_file))
 
+# Always use base tilt values
+values_files = ['infra/helm/values-tilt.yaml', override_file]
+
 # Deploy Helm chart using k8s_yaml for individual resource control
 k8s_yaml(helm(
     'infra/helm',
     name='legacy-use',
     namespace=k8s_namespace,
-    values=['infra/helm/values-tilt.yaml', override_file],
+    values=values_files,
     set=[
         'management.image.repository={}'.format(mgmt_image.rsplit(':', 1)[0]),
         'management.image.tag={}'.format(mgmt_image.rsplit(':', 1)[1] if ':' in mgmt_image else 'latest'),
@@ -106,6 +127,7 @@ k8s_yaml(helm(
         'linuxTarget.image.tag={}'.format(linux_image.rsplit(':', 1)[1] if ':' in linux_image else 'latest'),
         'androidTarget.image.repository={}'.format(android_image.rsplit(':', 1)[0]),
         'androidTarget.image.tag={}'.format(android_image.rsplit(':', 1)[1] if ':' in android_image else 'latest'),
+        'windowsKubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
     ]
 ))
 
@@ -161,7 +183,48 @@ k8s_resource(
     labels=['targets']
 )
 
-# Windows KubeVirt VM port forwarding would be handled by helm resource above
+# Windows KubeVirt resources
+if kubevirt_installed:
+    # Windows image builder as a local resource
+    local_resource(
+        'windows-image-builder',
+        cmd='docker build -t localhost:5000/legacy-use-windows-image-builder -f infra/docker/legacy-use-windows-image-builder/Dockerfile infra/docker/legacy-use-windows-image-builder && docker push localhost:5000/legacy-use-windows-image-builder',
+        labels=['build'],
+        auto_init=False,
+        trigger_mode=TRIGGER_MODE_MANUAL
+    )
+    
+    # Helper to build and upload Windows image
+    local_resource(
+        'windows-image-upload',
+        cmd='./scripts/windows-kubevirt-setup.sh build && ./scripts/windows-kubevirt-setup.sh upload',
+        labels=['build'],
+        auto_init=False,
+        trigger_mode=TRIGGER_MODE_MANUAL,
+        resource_deps=['windows-image-builder']
+    )
+    
+    # Windows VM resources - Tilt doesn't automatically track VirtualMachineInstanceReplicaSet
+    # For now, we'll just use local resources to manage the Windows VM
+    # The VMIRS will be deployed by Helm but not tracked by Tilt's k8s_resource
+    
+    # Local resource to check Windows VM status
+    local_resource(
+        'windows-vm-status',
+        cmd='kubectl get vmirs,vmi,pods,pvc -n legacy-use | grep windows || echo "No Windows VM resources found"',
+        labels=['targets'],
+        auto_init=False,
+        trigger_mode=TRIGGER_MODE_MANUAL
+    )
+    
+    # Local resource to manually create port forwards for Windows VM
+    local_resource(
+        'windows-vm-ports',
+        serve_cmd='kubectl port-forward -n legacy-use svc/legacy-use-windows-kubevirt 3389:3389 5903:5900',
+        labels=['targets'],
+        auto_init=False,
+        trigger_mode=TRIGGER_MODE_MANUAL
+    )
 
 # Local resource for generating API keys
 local_resource(
@@ -197,14 +260,33 @@ Services will be available at:
 - Backend API: http://localhost:8088
 - MCP Server: http://localhost:3000/mcp
 - PostgreSQL: localhost:5432
+
+Container Targets:
 - Wine Target VNC: vnc://localhost:5900 (password: wine)
 - Wine Target noVNC: http://localhost:6080
 - Linux Target VNC: vnc://localhost:5901 (password: password123)
 - Linux Target noVNC: http://localhost:6081/static/vnc.html
 - Android Target ADB: localhost:5555
 - Android Target VNC: vnc://localhost:5902
-- Android Target noVNC: http://localhost:6082
+- Android Target noVNC: http://localhost:6082""")
 
+if kubevirt_installed:
+    print("""
+Windows KubeVirt Target (KubeVirt detected):
+- Windows RDP: localhost:3389 (user: Admin, password: windows)
+- Windows VNC: vnc://localhost:5903
+- Windows noVNC: http://localhost:6083
+
+To set up Windows VM:
+1. Click "windows-image-builder" in Tilt UI to build the image
+2. Click "windows-image-upload" to upload to PVC
+3. The VM will start automatically""")
+else:
+    print("""
+Windows KubeVirt Target: Not available (KubeVirt not installed)
+To enable: Install KubeVirt in your cluster""")
+
+print("""
 To generate an API key:
 - Click "generate-api-key" in the Tilt UI
 
