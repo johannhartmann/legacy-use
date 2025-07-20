@@ -146,23 +146,61 @@ androidTarget:
       cpu: 1
       memory: 1Gi
 
-# Windows KubeVirt VM (optional - requires KubeVirt)
+# Windows KubeVirt VM (requires KubeVirt to be installed)
 windowsKubevirt:
-  enabled: false  # Enable manually if KubeVirt is available
+  enabled: true  # KubeVirt is installed in our Kind cluster
+  
+  # Number of replicas for VMIRS
   replicas: 1
   
-  # Use minimal resources for development
+  # VM hostname
+  hostname: legacy-win-dev
+  
+  # VM CPU and memory configuration
   cpu:
     cores: 2
-  memory: "4Gi"
+  memory: 4Gi
   
-  # Use ephemeral disk for development
-  ephemeralDisk: true
-  persistence:
-    size: "50Gi"
+  # Labels for the VMs
+  labels:
+    legacy-use.target-type: "windows-vm"
+    legacy-use.scalable: "true"
   
-  # Or use a lightweight Windows container disk
-  containerDiskImage: "quay.io/kubevirt/windows10:latest"
+  # Disk configuration
+  disk:
+    size: 32Gi
+    storageClass: standard  # Kind uses 'standard' storage class
+  
+  # VirtIO drivers
+  virtioDrivers:
+    image: kubevirt/virtio-container-disk:latest
+  
+  # Cloud-init user data for Windows
+  userData: |
+    # Add any cloud-init configuration here
+    # Note: Windows requires cloudbase-init
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    additionalPorts: []
+  
+  # noVNC for web access
+  novnc:
+    enabled: true
+    image: theasp/novnc:latest
+    imagePullPolicy: IfNotPresent
+    password: "windows"
+    service:
+      type: ClusterIP
+      port: 6083
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
 
 # Disable ingress for local development
 ingress:

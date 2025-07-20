@@ -46,14 +46,8 @@ spec:
         pod: {}
       volumes:
       - name: windows-disk
-        {{- if .Values.windowsKubevirt.ephemeralDisk }}
-        ephemeral:
-          persistentVolumeClaim:
-            claimName: {{ include "legacy-use.fullname" . }}-windows-disk-template
-        {{- else }}
-        containerDisk:
-          image: {{ .Values.windowsKubevirt.containerDiskImage }}
-        {{- end }}
+        persistentVolumeClaim:
+          claimName: {{ include "legacy-use.fullname" . }}-windows-vm-disk
       - name: cloudinit
         cloudInitNoCloud:
           userData: |
