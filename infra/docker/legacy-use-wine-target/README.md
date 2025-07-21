@@ -77,7 +77,7 @@ wine /home/wineuser/apps/myapp.exe
 
 ## Kubernetes Deployment
 
-See the Helm chart configuration for Wine targets in the main legacy-use helm directory.
+See the Helm chart configuration for Wine targets in the infra/helm directory.
 
 ## Supported Applications
 

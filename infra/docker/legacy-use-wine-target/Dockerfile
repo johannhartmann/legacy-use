@@ -1,5 +1,10 @@
+# Download TurboCASH installer
+FROM alpine:latest as turbocash-download
+RUN apk add --no-cache curl && \
+    curl -L -o /TurboCASH_Setup.exe "https://www.turbocash.co.za/Download/TurboCASH5/TurboCASH_Setup.exe"
+
 # Fast Wine container for development - uses Ubuntu's wine package with 32-bit support
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV DISPLAY=:1
@@ -10,20 +15,22 @@ ENV WINEPREFIX=/home/wineuser/.wine32
 RUN dpkg --add-architecture i386 && \
     apt-get update && apt-get install -y --no-install-recommends \
     # Essential tools
-    wget curl ca-certificates \
+    wget curl ca-certificates lsb-release gnupg2 software-properties-common bzip2 \
     # VNC and desktop
     xvfb x11vnc fluxbox xterm \
     # Process management
     supervisor \
-    # Wine32 support for TurboCASH
-    wine32 wine64 \
-    # Wine dependencies for Windows apps
-    winbind fonts-wine \
-    # Additional libraries that TurboCASH might need
-    lib32z1 lib32ncurses6 libc6:i386 libncurses5:i386 libstdc++6:i386 \
-    # Web VNC
-    novnc websockify \
+    # Additional libraries that applications might need
+    lib32z1 lib32ncurses6 libc6:i386 libncurses6:i386 libstdc++6:i386 \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Add WineHQ repository and install latest stable Wine
+RUN mkdir -pm755 /etc/apt/keyrings && \
+    wget -nc -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key && \
+    wget -NP /etc/apt/sources.list.d/ "https://dl.winehq.org/wine-builds/ubuntu/dists/noble/winehq-noble.sources" && \
+    apt-get update && \
+    apt-get install -y --install-recommends winehq-stable && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Create user and directories
 RUN useradd -m -s /bin/bash wineuser && \
@@ -35,18 +42,24 @@ RUN useradd -m -s /bin/bash wineuser && \
 RUN x11vnc -storepasswd wine /home/wineuser/.vnc/passwd && \
     chown wineuser:wineuser /home/wineuser/.vnc/passwd
 
-# Simple supervisor config
-RUN printf '[supervisord]\nnodaemon=true\nuser=root\n\n[program:xvfb]\ncommand=/usr/bin/Xvfb :1 -screen 0 1920x1080x24\nautorestart=true\nuser=root\npriority=100\n\n[program:x11vnc]\ncommand=/usr/bin/x11vnc -display :1 -usepw -forever -shared -rfbport 5900 -rfbauth /home/wineuser/.vnc/passwd -noshm\nautorestart=true\nuser=wineuser\npriority=200\n\n[program:novnc]\ncommand=/usr/share/novnc/utils/launch.sh --vnc localhost:5900 --listen 6080\nautorestart=true\nuser=root\npriority=300\n\n[program:fluxbox]\ncommand=/usr/bin/fluxbox -display :1\nautorestart=true\nuser=wineuser\nenvironment=HOME="/home/wineuser",DISPLAY=":1"\npriority=400\n' > /etc/supervisor/conf.d/supervisord.conf
+# Simple supervisor config (removed noVNC - now using shared proxy)
+RUN printf '[supervisord]\nnodaemon=true\nuser=root\n\n[program:xvfb]\ncommand=/usr/bin/Xvfb :1 -screen 0 1920x1080x24\nautorestart=true\nuser=root\npriority=100\n\n[program:x11vnc]\ncommand=/usr/bin/x11vnc -display :1 -usepw -forever -shared -rfbport 5900 -rfbauth /home/wineuser/.vnc/passwd -noshm\nautorestart=true\nuser=wineuser\npriority=200\n\n[program:fluxbox]\ncommand=/usr/bin/fluxbox -display :1\nautorestart=true\nuser=wineuser\nenvironment=HOME="/home/wineuser",DISPLAY=":1"\npriority=400\n' > /etc/supervisor/conf.d/supervisord.conf
 
 # Setup Wine environment
 USER wineuser
 ENV HOME=/home/wineuser
 
-# Download TurboCASH installer
+# Copy TurboCASH installer
 USER root
-RUN wget -q -O /home/wineuser/TurboCASH_Setup.exe "https://sourceforge.net/projects/turbocash/files/TurboCASH%20Accounting/TurboCASH%205.0.8.0/TurboCASH5_Setup_5.0.8.0.exe/download" || \
-    wget -q -O /home/wineuser/TurboCASH_Setup.exe "https://sourceforge.net/projects/turbocash/files/latest/download" && \
-    chown wineuser:wineuser /home/wineuser/TurboCASH_Setup.exe
+COPY --from=turbocash-download /TurboCASH_Setup.exe /home/wineuser/
+RUN chown wineuser:wineuser /home/wineuser/TurboCASH_Setup.exe
+
+# Copy and extract Lotus demo application
+COPY infra/docker/legacy-use-wine-target/demo.tar.bz2 /home/wineuser/
+RUN cd /home/wineuser && \
+    tar -xjf demo.tar.bz2 && \
+    rm demo.tar.bz2 && \
+    chown -R wineuser:wineuser /home/wineuser/lotus
 
 # Create startup script  
 USER root
@@ -55,13 +68,35 @@ RUN cat > /startup.sh << 'EOF'
 set -e
 echo "Starting Wine container..."
 
+# Create Desktop directory first
+su - wineuser -c "mkdir -p /home/wineuser/Desktop"
+
+# Fix ownership of .wine32 directory if it exists
+chown -R wineuser:wineuser /home/wineuser/.wine32 2>/dev/null || true
+
 # Initialize Wine32 at runtime
-su - wineuser -c "WINEARCH=win32 WINEPREFIX=/home/wineuser/.wine32 wineboot --init 2>/dev/null || true" &
+su - wineuser -c "WINEARCH=win32 WINEPREFIX=/home/wineuser/.wine32 wine wineboot --init 2>/dev/null || true" &
 
 # Wait for Wine initialization
 sleep 10
 
-# Create desktop shortcut for installer
+# Start Wine Explorer in background
+su - wineuser -c "DISPLAY=:1 WINEPREFIX=/home/wineuser/.wine32 wine explorer /desktop=shell,1920x1080 2>/dev/null" &
+
+# Create desktop shortcut for Lotus installer
+su - wineuser -c 'cat > /home/wineuser/Desktop/Install_Lotus.desktop << EOD
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Install Lotus Demo
+Exec=env WINEPREFIX=/home/wineuser/.wine32 wine /home/wineuser/lotus/install.exe
+Icon=system-software-install
+Terminal=false
+Categories=System;
+EOD
+chmod +x /home/wineuser/Desktop/Install_Lotus.desktop' || true
+
+# Create desktop shortcut for TurboCASH installer
 su - wineuser -c 'cat > /home/wineuser/Desktop/Install_TurboCASH.desktop << EOD
 [Desktop Entry]
 Version=1.0
@@ -106,7 +141,7 @@ EOF
 
 RUN chmod +x /startup.sh
 
-EXPOSE 5900 6080
+EXPOSE 5900
 VOLUME /home/wineuser/.wine32
 
 ENTRYPOINT ["/startup.sh"]

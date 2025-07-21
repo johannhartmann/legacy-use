@@ -1,30 +1,56 @@
-# Use the Ubuntu desktop VNC image as base
-FROM dorowu/ubuntu-desktop-lxde-vnc:focal
+# Ubuntu 24.04 desktop VNC image based on dorowu's architecture
+FROM ubuntu:24.04
+MAINTAINER Legacy-use Team
 
-# Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND noninteractive
 
-# Fix GPG key issues and update package lists, then install GnuCash and screenshot tools
-RUN apt-get update --allow-unauthenticated || true && \
-    apt-get install -y --allow-unauthenticated gnupg2 wget && \
-    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - && \
-    apt-get update && \
+# Install packages
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    gnucash \
-    gnucash-docs \
-    gnome-screenshot \
-    x11-utils \
-    && apt-get clean \
+        # Core packages
+        supervisor \
+        openssh-server pwgen sudo vim-tiny \
+        net-tools \
+        # Desktop environment
+        lxde x11vnc xvfb \
+        openbox lxpanel pcmanfm \
+        gtk2-engines-murrine fonts-ubuntu fonts-ubuntu-console \
+        # Python for web interface
+        python3-pip python3-dev build-essential \
+        # Graphics support
+        mesa-utils libgl1-mesa-dri \
+        adwaita-icon-theme gtk2-engines-pixbuf \
+        dbus-x11 x11-utils \
+        # Additional packages
+        wget curl ca-certificates \
+        # GnuCash specific
+        gnucash \
+        gnucash-docs \
+        gnome-screenshot \
+    && apt-get autoclean \
+    && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
 
-
+# Remove packages we don't need
 RUN apt-get remove -y \
-    vim-tiny firefox  \    
+    vim-tiny firefox \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# tini for subreap
+ENV TINI_VERSION v0.19.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /bin/tini
+RUN chmod +x /bin/tini
 
-# Account Tree file will be mounted as a volume in docker-compose.yml
+# Copy our image files
+COPY infra/docker/linux-machine/image /
+
+# Make startup script executable
+RUN chmod +x /startup.sh
+
+# Create necessary directories
+RUN mkdir -p /root/.config/pcmanfm/LXDE/ && \
+    mkdir -p /var/log/supervisor/
 
 # Add GnuCash to supervisor services
 COPY infra/docker/linux-machine/gnucash.conf /etc/supervisor/conf.d/gnucash.conf 
@@ -40,3 +66,16 @@ RUN chown developer:developer /gnucash/data.* && \
     chmod 644 /gnucash/data.* && \
     chown developer:developer /gnucash && \
     chmod 755 /gnucash
+
+# Set environment for VNC
+# No password needed - runs in secure Kubernetes namespace
+
+# Expose VNC port only (noVNC handled by shared proxy)
+EXPOSE 5900
+
+# Set working directory
+WORKDIR /root
+
+# Set entrypoint
+ENTRYPOINT ["/startup.sh"]
+
