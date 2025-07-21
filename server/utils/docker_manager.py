@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 CONTAINER_PORT = 8088
 
 
-async def check_target_container_health(container_ip: str) -> dict:
+async def check_target_container_health(container_ip_or_name: str) -> dict:
     """
     Check the /health endpoint of a target container.
 
     Args:
-        container_ip: The IP address of the container.
+        container_ip_or_name: The IP address or container name.
         session_id: The UUID or string ID of the session (optional, for logging).
 
     Returns:
@@ -29,34 +29,31 @@ async def check_target_container_health(container_ip: str) -> dict:
           'healthy': bool (True if health check passed, False otherwise)
           'reason': str (Details about the health status or error)
     """
-    health_url = f'http://{container_ip}:8088/health'
-
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            health_response = await client.get(health_url)
-
-            if health_response.status_code == 200:
-                logger.info(f'Health check passed for target {container_ip}')
-                return {'healthy': True, 'reason': 'Health check successful.'}
-            else:
-                reason = f'Target container at {container_ip} failed health check. Status: {health_response.status_code}'
-                logger.warning(f'{reason}')
-                return {'healthy': False, 'reason': reason}
-
-    except httpx.TimeoutException:
-        reason = f'Target container at {container_ip} failed health check: Timeout'
-        logger.warning(f'{reason}')
-        return {'healthy': False, 'reason': reason}
-    except httpx.RequestError as e:
-        reason = (
-            f'Target container at {container_ip} failed health check: Request Error {e}'
-        )
-        logger.warning(f'{reason}')
-        return {'healthy': False, 'reason': reason}
-    except Exception as e:
-        reason = f'Unexpected error during health check for {container_ip}: {str(e)}'
-        logger.error(f'{reason}')
-        return {'healthy': False, 'reason': reason}
+    # Try different health endpoints based on what the targets expose
+    health_urls = [
+        f'http://{container_ip_or_name}:6081/api/health',  # Linux target health endpoint
+        f'http://{container_ip_or_name}:6080/',  # Wine/Android target noVNC endpoint
+        f'http://{container_ip_or_name}:8088/health',  # Legacy endpoint
+    ]
+    
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        for health_url in health_urls:
+            try:
+                health_response = await client.get(health_url)
+                if health_response.status_code == 200:
+                    logger.info(f'Health check passed for target {container_ip_or_name} at {health_url}')
+                    return {'healthy': True, 'reason': 'Health check successful.'}
+            except httpx.TimeoutException:
+                logger.debug(f'Health check timeout for {health_url}')
+                continue
+            except httpx.RequestError as e:
+                logger.debug(f'Health check error for {health_url}: {str(e)}')
+                continue
+    
+    # If all health checks failed
+    reason = f'Target container at {container_ip_or_name} failed all health checks'
+    logger.warning(f'{reason}')
+    return {'healthy': False, 'reason': reason}
 
 
 def get_container_ip(container_id: str) -> Optional[str]:

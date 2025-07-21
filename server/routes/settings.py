@@ -184,3 +184,34 @@ async def update_provider_settings(request: UpdateProviderRequest):
         'status': 'success',
         'message': f'Provider {request.provider} configured successfully',
     }
+
+
+@settings_router.get('/status', response_model=Dict[str, bool])
+async def get_configuration_status():
+    """Check if the system is properly configured with API credentials."""
+    
+    # Check if any provider has valid configuration
+    has_anthropic = bool(settings.ANTHROPIC_API_KEY)
+    has_bedrock = all([
+        settings.AWS_ACCESS_KEY_ID,
+        settings.AWS_SECRET_ACCESS_KEY,
+        settings.AWS_REGION,
+    ]) if settings.API_PROVIDER == 'bedrock' else False
+    has_vertex = all([
+        settings.VERTEX_REGION,
+        settings.VERTEX_PROJECT_ID,
+    ]) if settings.API_PROVIDER == 'vertex' else False
+    
+    # System is configured if current provider has valid credentials
+    is_configured = False
+    if settings.API_PROVIDER == 'anthropic':
+        is_configured = has_anthropic
+    elif settings.API_PROVIDER == 'bedrock':
+        is_configured = has_bedrock
+    elif settings.API_PROVIDER == 'vertex':
+        is_configured = has_vertex
+    
+    return {
+        'configured': is_configured,
+        'has_api_credentials': is_configured,
+    }

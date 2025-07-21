@@ -19,11 +19,12 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from server.config.default_ports import DEFAULT_PORTS
 from server.database import db
 from server.models.base import Session, SessionCreate, SessionUpdate
+from server.settings import settings
 from server.utils.docker_manager import (
-    get_container_status,
     launch_container,
     stop_container,
 )
+from server.utils.orchestrator_utils import get_container_status
 
 logger = logging.getLogger(__name__)
 
@@ -167,9 +168,18 @@ async def create_session(
             vnc_port = container_info.ports.get('5900', '')
             novnc_port = container_info.ports.get('6080', '') or container_info.ports.get('80', '')
             
+            # In Kubernetes, ports are not mapped - use internal ports directly
+            if settings.CONTAINER_ORCHESTRATOR.lower() == 'kubernetes':
+                # Linux target uses nginx on port 80
+                if pool_target_type == 'linux':
+                    novnc_port = '80'
+                else:
+                    # Other targets use port 6080 directly
+                    novnc_port = '6080'
+            
             # Update session with container info
             # Use container name as IP since containers can reach each other by name
-            container_ip = container_info.ip_address or container_info.name
+            container_ip = container_info.ip or container_info.name
             db.update_session(
                 db_session['id'],
                 {
@@ -378,9 +388,9 @@ async def execute_api_on_session(
 @session_router.get('/{session_id}/vnc/{path:path}', include_in_schema=True)
 async def proxy_vnc(session_id: UUID, path: str, request: Request):
     """
-    Proxy VNC viewer requests to the container running the session.
+    Proxy VNC viewer requests to the shared noVNC proxy service.
 
-    This endpoint forwards VNC viewer requests to the container's VNC server running on port 6080.
+    This endpoint forwards VNC viewer requests to the shared noVNC proxy which handles all VNC connections.
     """
     # Get session
     session = db.get_session(session_id)
@@ -391,23 +401,25 @@ async def proxy_vnc(session_id: UUID, path: str, request: Request):
     if not session.get('container_id') or not session.get('container_ip'):
         raise HTTPException(status_code=400, detail='Session has no active container')
 
-    # Construct the target URL
+    # Get container IP and VNC port
     container_ip = session.get('container_ip')
+    vnc_port = session.get('vnc_port', '5900')  # Default VNC port
     
-    # Check if we have dynamic ports from container pool
-    if session.get('novnc_port'):
-        # When using container pool with dynamic ports, we need to connect
-        # to the container directly using the internal port
-        # The linux-machine serves noVNC on port 80 inside the container
-        target_url = f'http://{container_ip}:80/{path}'
-        logger.info(f'VNC proxy: Using container network with dynamic ports - {target_url}')
-    else:
-        # Use container network with fixed port (original behavior)
-        target_url = f'http://{container_ip}:6080/{path}'
-        logger.info(f'VNC proxy: Using fixed port - {target_url}')
-
+    # Use shared noVNC proxy
+    novnc_proxy_url = os.getenv('NOVNC_PROXY_URL', 'http://novnc-proxy')
+    
     # Get query parameters from the request
     params = dict(request.query_params)
+    
+    # For websockify connections, we need to pass target info
+    if path == 'websockify':
+        # Add target information as query parameters
+        params['session_id'] = str(session_id)
+        params['target_host'] = container_ip
+        params['target_port'] = vnc_port
+    
+    # Build target URL
+    target_url = f'{novnc_proxy_url}/{path}'
 
     # Get headers from the request, excluding host
     headers = dict(request.headers)
@@ -487,19 +499,18 @@ async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
         )
         return
 
-    # Construct the target WebSocket URL
+    # Get container details
     container_ip = session.get('container_ip')
+    vnc_port = session.get('vnc_port', '5900')  # Default VNC port
     
-    # Check if we have dynamic ports from container pool
-    if session.get('novnc_port'):
-        # For containers with novnc_port, websockify runs on that port
-        novnc_port = session.get('novnc_port')
-        target_ws_url = f'ws://{container_ip}:{novnc_port}/websockify'
-    else:
-        # Use container network with fixed port (original behavior)
-        target_ws_url = f'ws://{container_ip}:6080/websockify'
+    # Connect to shared noVNC proxy WebSocket with target information in headers
+    novnc_proxy_host = os.getenv('NOVNC_PROXY_HOST', 'novnc-proxy')
+    novnc_proxy_port = os.getenv('NOVNC_PROXY_PORT', '80')
     
-    logger.info(f'[VNC-WS] Connecting to container: {target_ws_url}')
+    # Build WebSocket URL to shared proxy
+    target_ws_url = f'ws://{novnc_proxy_host}:{novnc_proxy_port}/websockify'
+    
+    logger.info(f'[VNC-WS] Connecting to shared noVNC proxy: {target_ws_url}')
 
     # Accept the WebSocket connection with the same subprotocol if provided
     subprotocol = None
@@ -536,8 +547,14 @@ async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
         return contains_filter
 
     try:
-        # Connect to the target WebSocket with the same subprotocol
-        connect_kwargs = {}
+        # Connect to the shared noVNC proxy with target information in headers
+        connect_kwargs = {
+            'extra_headers': {
+                'X-Session-Id': str(session_id),
+                'X-Target-Host': container_ip,
+                'X-Target-Port': vnc_port
+            }
+        }
         if subprotocol:
             connect_kwargs['subprotocols'] = [subprotocol]
             
@@ -641,6 +658,14 @@ async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
         except Exception as e:
             # Log but don't raise the error since this is cleanup code
             logger.debug(f'[VNC-WS] Error closing WebSocket in cleanup: {str(e)}')
+
+
+# Add endpoint to check container pool status (for debugging)
+@session_router.get('/pool/status')
+async def get_pool_status():
+    """Get container pool status for debugging."""
+    from server.utils.container_pool import container_pool
+    return await container_pool.get_pool_status()
 
 
 # Add a new endpoint to update session state
