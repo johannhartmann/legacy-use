@@ -30,6 +30,8 @@ spec:
       serviceAccountName: {{ include "legacy-use.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.androidTarget.podSecurityContext | nindent 8 }}
+      hostNetwork: false
+      dnsPolicy: ClusterFirst
       containers:
         - name: android
           securityContext:
@@ -41,6 +43,14 @@ spec:
               value: "{{ .Values.androidTarget.emulatorDevice }}"
             - name: WEB_VNC
               value: "{{ .Values.androidTarget.webVnc }}"
+            - name: DATAPARTITION
+              value: "2g"
+            - name: EMULATOR_NO_BOOT_ANIM
+              value: "1"
+            - name: DEVICE
+              value: "Samsung Galaxy S10"
+            - name: EMULATOR_ARGS
+              value: "-no-window -no-audio -no-boot-anim -gpu swiftshader_indirect"
           ports:
             - name: adb
               containerPort: 5555
@@ -48,14 +58,13 @@ spec:
             - name: vnc
               containerPort: 5900
               protocol: TCP
-            - name: novnc
-              containerPort: 6080
-              protocol: TCP
           volumeMounts:
             - name: android-data
               mountPath: /home/androidusr/.android
             - name: android-apps
               mountPath: /home/androidusr/apps
+            - name: dshm
+              mountPath: /dev/shm
           resources:
             {{- toYaml .Values.androidTarget.resources | nindent 12 }}
       volumes:
@@ -73,6 +82,10 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
       {{- with .Values.androidTarget.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

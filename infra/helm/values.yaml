@@ -331,10 +331,10 @@ androidTarget:
   resources:
     limits:
       cpu: 4
-      memory: 4Gi
+      memory: 6Gi
     requests:
       cpu: 2
-      memory: 2Gi
+      memory: 4Gi
   
   podSecurityContext:
     privileged: true
