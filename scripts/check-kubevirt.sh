@@ -121,6 +121,63 @@ check_kubevirt_components() {
     fi
 }
 
+check_cdi_deployment() {
+    log "Checking CDI (Containerized Data Importer) status..."
+    
+    # Check if CDI namespace exists
+    if ! kubectl get namespace cdi &>/dev/null; then
+        warning "CDI namespace not found - CDI may not be installed"
+        return
+    fi
+    
+    # Check CDI CR status
+    local cdi_status=$(kubectl get cdi/cdi -n cdi -o=jsonpath="{.status.phase}" 2>/dev/null || echo "NotFound")
+    
+    if [ "$cdi_status" = "Deployed" ]; then
+        info "CDI is deployed and ready"
+    else
+        warning "CDI status: $cdi_status (expected: Deployed)"
+    fi
+    
+    # Check CDI version
+    local cdi_version=$(kubectl get cdi/cdi -n cdi -o=jsonpath="{.status.observedVersion}" 2>/dev/null || echo "Unknown")
+    info "CDI version: $cdi_version"
+}
+
+check_cdi_components() {
+    log "Checking CDI components..."
+    
+    # Skip if CDI is not installed
+    if ! kubectl get namespace cdi &>/dev/null; then
+        return
+    fi
+    
+    # Components to check
+    local components=(
+        "deployment/cdi-apiserver"
+        "deployment/cdi-controller"
+        "deployment/cdi-uploadproxy"
+    )
+    
+    local all_ready=true
+    
+    for component in "${components[@]}"; do
+        local ready=$(kubectl get -n cdi "$component" -o=jsonpath="{.status.readyReplicas}" 2>/dev/null || echo "0")
+        local desired=$(kubectl get -n cdi "$component" -o=jsonpath="{.status.replicas}" 2>/dev/null || echo "0")
+        
+        if [ "$ready" = "$desired" ] && [ "$ready" != "0" ]; then
+            info "$component: $ready/$desired ready"
+        else
+            warning "$component: $ready/$desired ready"
+            all_ready=false
+        fi
+    done
+    
+    if ! $all_ready; then
+        warning "Some CDI components are not ready"
+    fi
+}
+
 check_virtctl() {
     log "Checking virtctl CLI tool..."
     
@@ -194,6 +251,8 @@ main() {
     check_cluster
     check_kubevirt_deployment
     check_kubevirt_components
+    check_cdi_deployment
+    check_cdi_components
     check_virtctl
     list_vms
     print_summary

@@ -10,18 +10,26 @@ This guide explains how to configure Claude Desktop to use the Legacy-Use MCP se
 
 ## Configuration Steps
 
-### 1. Install the MCP Server Locally
+### 1. HTTP Streaming Transport (Recommended)
 
-First, install the MCP server on your local machine:
+The MCP server uses **HTTP streaming transport** and runs on port 3000 when deployed with Docker. 
+
+**Connection URL**: `http://localhost:3000/mcp`
+
+This is the modern approach that replaces outdated SSE (Server-Sent Events).
+
+### 2. For Local Development
+
+If you need to run the MCP server locally for development:
 
 ```bash
 cd mcp-server
 pip install -e .
 ```
 
-### 2. Configure Claude Desktop
+### 3. Configure Claude Desktop (STDIO Transport)
 
-Add the following configuration to your Claude Desktop settings. The configuration file location varies by operating system:
+For local desktop integration using STDIO transport, add the following configuration:
 
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`

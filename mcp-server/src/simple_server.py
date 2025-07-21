@@ -163,10 +163,19 @@ class LegacyUseMCPServer:
         )
         
         try:
-            # Run the MCP server
-            logger.info("Starting MCP server...")
-            # Use run_async since we're already in an async context
-            await self.mcp.run_async()
+            # Run the MCP server with HTTP streaming transport
+            logger.info("Starting MCP server with HTTP streaming...")
+            host = os.getenv("MCP_SERVER_HOST", "0.0.0.0")
+            port = int(os.getenv("MCP_SERVER_PORT", "3000"))
+            path = os.getenv("MCP_SERVER_PATH", "/mcp")
+            
+            # Use HTTP streaming transport instead of STDIO
+            await self.mcp.run_async(
+                transport="http",
+                host=host,
+                port=port,
+                path=path
+            )
             
         finally:
             # Cancel monitor task
