@@ -37,6 +37,7 @@ management:
   env:
     LEGACY_USE_DEBUG: "0"  # Disable reload for now - it's causing issues in Kind
     # ANTHROPIC_API_KEY will be set via --set flag from Tiltfile
+    # API_KEY will be set via --set flag from Tiltfile
   
   # Mount source code for hot reload in development
   # NOTE: Disabled for Kind - host paths don't exist on Kind nodes
@@ -82,6 +83,8 @@ mcpServer:
   env:
     # LEGACY_USE_API_KEY will be set via --set flag from Tiltfile
     LEGACY_USE_API_KEY: ""
+    # API_KEY will be set via --set flag from Tiltfile
+    API_KEY: ""
   
   resources:
     limits:

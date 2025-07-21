@@ -1,0 +1,19 @@
+{{- if .Values.novncProxy.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-novnc-proxy
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: novnc-proxy
+spec:
+  type: {{ .Values.novncProxy.service.type }}
+  ports:
+    - port: {{ .Values.novncProxy.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "legacy-use.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: novnc-proxy
+{{- end }}

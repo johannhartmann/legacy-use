@@ -6,6 +6,7 @@ services:
     environment:
       - LEGACY_USE_DEBUG=${LEGACY_USE_DEBUG:-0}
       - DATABASE_URL=postgresql://postgres:postgres@demo-db:5432/legacy_use_demo
+      - CONTAINER_ORCHESTRATOR=docker
     env_file:
       - .env
       - .env.local
@@ -39,14 +40,15 @@ services:
   # Wine target for Windows application support
   wine-target:
     image: legacy-use-wine-target:local
-    container_name: legacy-use-wine-target
+    labels:
+      - "legacy-use.target-type=wine"
+      - "legacy-use.scalable=true"
     environment:
       - DISPLAY=:1
       - WINEARCH=win64
       - WINEPREFIX=/home/wineuser/.wine
     ports:
       - "5900:5900"  # VNC
-      - "6080:6080"  # noVNC
     volumes:
       - wine_data:/home/wineuser/.wine
       - wine_apps:/home/wineuser/apps
@@ -57,10 +59,11 @@ services:
   # Linux machine target (example target)
   linux-machine:
     image: linux-machine:local
-    container_name: legacy-use-linux-machine
+    labels:
+      - "legacy-use.target-type=linux"
+      - "legacy-use.scalable=true"
     ports:
       - "5901:5900"  # VNC (different port to avoid Wine conflict)
-      - "6081:80"    # noVNC (nginx serves on port 80 inside container)
     restart: unless-stopped
     networks:
       - legacy-use-network
@@ -68,7 +71,9 @@ services:
   # Android emulator target
   android-target:
     image: legacy-use-android-target:local
-    container_name: legacy-use-android-target
+    labels:
+      - "legacy-use.target-type=android"
+      - "legacy-use.scalable=true"
     privileged: true
     environment:
       - EMULATOR_DEVICE=Samsung Galaxy S10
@@ -76,7 +81,7 @@ services:
     ports:
       - "5555:5555"  # ADB
       - "5902:5900"  # VNC (different port to avoid conflicts)
-      - "6082:6080"  # noVNC (different port to avoid conflicts)
+      # Note: Android target still has built-in noVNC, but we use shared proxy instead
     volumes:
       - android_data:/home/androidusr/.android
       - android_apps:/home/androidusr/apps
@@ -84,11 +89,26 @@ services:
     networks:
       - legacy-use-network
 
+  # Shared noVNC proxy for all VNC connections
+  novnc-proxy:
+    image: legacy-use-novnc-proxy:local
+    container_name: legacy-use-novnc-proxy
+    environment:
+      - LEGACY_USE_URL=http://legacy-use-mgmt:8088
+      - API_KEY=${API_KEY:-not-secure-api-key}
+    ports:
+      - "6090:80"  # Different port to avoid conflicts
+    depends_on:
+      - legacy-use-mgmt
+    restart: unless-stopped
+    networks:
+      - legacy-use-network
+
   # MCP server for API integration
   mcp-server:
     build:
-      context: ./mcp-server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: infra/docker/legacy-use-mcp/Dockerfile
     image: legacy-use-mcp-server:local
     container_name: legacy-use-mcp-server
     environment:
