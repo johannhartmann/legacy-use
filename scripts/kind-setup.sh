@@ -80,50 +80,59 @@ create_kind_cluster() {
         log "Using configuration from $CONFIG_FILE"
         kind create cluster --name "$CLUSTER_NAME" --config "$CONFIG_FILE"
     else
-        log "Creating cluster with default configuration"
-        kind create cluster --name "$CLUSTER_NAME"
+        log "Creating cluster with default configuration and registry support"
+        cat <<EOF | kind create cluster --name "$CLUSTER_NAME" --config=-
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.grpc.v1.cri".registry]
+    config_path = "/etc/containerd/certs.d"
+nodes:
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+- role: worker
+- role: worker
+EOF
     fi
     
     # Set kubectl context
     kubectl cluster-info --context "kind-$CLUSTER_NAME"
 }
 
-configure_registry_for_kind() {
-    log "Configuring registry for Kind nodes..."
-    
-    # Get the registry IP from docker network
-    local registry_ip
-    if [ "$(uname)" = "Darwin" ] || [ "$(uname)" = "Linux" ]; then
-        # For Mac/Linux, registry is accessible via localhost
-        registry_ip="host.docker.internal"
-    else
-        # For Linux without host.docker.internal, get the container IP
-        registry_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${REGISTRY_NAME}")
-    fi
-    
-    # Configure each node to use the registry
-    for node in $(kind get nodes --name "$CLUSTER_NAME"); do
-        # Add registry config to containerd for localhost
-        docker exec "${node}" mkdir -p /etc/containerd/certs.d/localhost:${REGISTRY_PORT}
-        cat <<EOF | docker exec -i "${node}" tee /etc/containerd/certs.d/localhost:${REGISTRY_PORT}/hosts.toml
-[host."http://${registry_ip}:5000"]
-  capabilities = ["pull", "resolve", "push"]
-  skip_verify = true
-EOF
-        
-        # Also configure for kind-registry hostname
-        docker exec "${node}" mkdir -p /etc/containerd/certs.d/kind-registry:5000
-        cat <<EOF | docker exec -i "${node}" tee /etc/containerd/certs.d/kind-registry:5000/hosts.toml
-[host."http://kind-registry:5000"]
-  capabilities = ["pull", "resolve", "push"]
-  skip_verify = true
-EOF
-    done
+connect_registry_to_kind() {
+    log "Connecting registry to Kind network..."
     
     # Connect the registry to the cluster network
     if [ "$(docker inspect -f='{{json .NetworkSettings.Networks.kind}}' "${REGISTRY_NAME}")" = 'null' ]; then
         docker network connect "kind" "${REGISTRY_NAME}" || true
     fi
+}
+
+configure_registry_on_nodes() {
+    log "Configuring registry on Kind nodes..."
+    
+    # Create registry config directory and hosts.toml on each node
+    REGISTRY_DIR="/etc/containerd/certs.d/localhost:${REGISTRY_PORT}"
+    for node in $(kind get nodes --name "$CLUSTER_NAME"); do
+        log "Configuring registry on node: ${node}"
+        docker exec "${node}" mkdir -p "${REGISTRY_DIR}"
+        cat <<EOF | docker exec -i "${node}" cp /dev/stdin "${REGISTRY_DIR}/hosts.toml"
+[host."http://${REGISTRY_NAME}:5000"]
+EOF
+    done
 }
 
 create_registry_configmap() {
@@ -141,6 +150,7 @@ data:
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
 }
+
 
 install_kubevirt() {
     log "Installing KubeVirt..."
@@ -183,6 +193,43 @@ install_kubevirt() {
         error "KubeVirt deployment failed. Current phase: $phase"
         exit 1
     fi
+}
+
+install_cdi() {
+    log "Installing CDI (Containerized Data Importer)..."
+    
+    # Get CDI version - using a stable version compatible with KubeVirt
+    local CDI_VERSION="${CDI_VERSION:-v1.60.3}"
+    log "Using CDI version: $CDI_VERSION"
+    
+    # Deploy CDI operator
+    log "Deploying CDI operator..."
+    kubectl create -f "https://github.com/kubevirt/containerized-data-importer/releases/download/${CDI_VERSION}/cdi-operator.yaml"
+    
+    # Wait for operator to be ready
+    log "Waiting for CDI operator to be ready..."
+    kubectl wait -n cdi deployment/cdi-operator --for=condition=Available --timeout=300s
+    
+    # Deploy CDI CR
+    log "Deploying CDI CR..."
+    kubectl create -f "https://github.com/kubevirt/containerized-data-importer/releases/download/${CDI_VERSION}/cdi-cr.yaml"
+    
+    # Wait for CDI to be ready
+    log "Waiting for CDI to be ready (this may take a few minutes)..."
+    kubectl wait -n cdi cdi/cdi --for=condition=Available --timeout=600s
+    
+    # Verify deployment
+    local cdi_phase=$(kubectl get cdi/cdi -n cdi -o=jsonpath="{.status.phase}" 2>/dev/null || echo "NotFound")
+    if [ "$cdi_phase" = "Deployed" ]; then
+        log "CDI successfully deployed!"
+    else
+        error "CDI deployment failed. Current phase: $cdi_phase"
+        exit 1
+    fi
+    
+    # Check CDI components
+    log "CDI components status:"
+    kubectl get all -n cdi
 }
 
 install_virtctl() {
@@ -270,9 +317,11 @@ main() {
     check_prerequisites
     create_registry
     create_kind_cluster
-    configure_registry_for_kind
+    connect_registry_to_kind
+    configure_registry_on_nodes
     create_registry_configmap
     install_kubevirt
+    install_cdi
     install_virtctl
     print_cluster_info
     
