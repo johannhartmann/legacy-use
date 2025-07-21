@@ -15,7 +15,7 @@ if [ "${LEGACY_USE_DEBUG:-0}" = "1" ]; then
 else
     echo "Production mode: Using workers without reload"
     # Production mode with workers
-    UVICORN_CMD="gunicorn -w 1 -k uvicorn.workers.UvicornH11Worker server.server:app --threads 4 --bind 0.0.0.0:$FASTAPI_SERVER_PORT"
+    UVICORN_CMD="uv run gunicorn -w 1 -k uvicorn.workers.UvicornH11Worker server.server:app --threads 4 --bind 0.0.0.0:$FASTAPI_SERVER_PORT"
 fi
 
 LOG_FILE="/tmp/fastapi_stdout.log"
@@ -44,6 +44,13 @@ start_uvicorn
 echo "Starting React app"
 # Set the path to include node_modules/.bin
 export PATH="$HOME/node_modules/.bin:$PATH"
+
+# Pass API_KEY to frontend as VITE_API_KEY if not already set
+if [ -n "$API_KEY" ] && [ -z "$VITE_API_KEY" ]; then
+    export VITE_API_KEY="$API_KEY"
+    echo "Setting VITE_API_KEY from API_KEY environment variable"
+fi
+
 # Check if debug mode is enabled
 if [ "${LEGACY_USE_DEBUG:-0}" = "1" ]; then
     echo "Installing node dependencies"

@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { forwardDistinctId } from './telemetryService';
 
 // Always use the API_URL from environment variables
 // This should be set to the full URL of your API server (e.g., http://localhost:8088)
@@ -10,11 +9,6 @@ const apiClient = axios.create({
   baseURL: API_URL,
 });
 
-// Log every request with telemetry
-apiClient.interceptors.request.use(config => {
-  forwardDistinctId(config);
-  return config;
-});
 
 // Add browser globals for linter
 const { localStorage } = globalThis;
@@ -74,6 +68,17 @@ export const getProviders = async () => {
     return response.data;
   } catch (error) {
     console.error('Error fetching providers:', error);
+    throw error;
+  }
+};
+
+// Function to check if system is configured with API credentials
+export const getConfigurationStatus = async () => {
+  try {
+    const response = await apiClient.get('/settings/status');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching configuration status:', error);
     throw error;
   }
 };

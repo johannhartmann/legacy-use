@@ -25,11 +25,10 @@ import OnboardingWizard from './components/OnboardingWizard';
 import SessionList from './components/SessionList';
 import TargetDetails from './components/TargetDetails';
 import TargetList from './components/TargetList';
-import TawkChat from './components/TawkChat';
 import VncViewer from './components/VncViewer';
 import { AiProvider, useAiProvider } from './contexts/AiProviderContext';
 import { ApiKeyProvider, useApiKey } from './contexts/ApiKeyContext';
-import { getSessions, setApiKeyHeader, testApiKey } from './services/apiService';
+import { getConfigurationStatus, getSessions, setApiKeyHeader, testApiKey } from './services/apiService';
 
 // Create a dark theme
 const darkTheme = createTheme({
@@ -212,20 +211,49 @@ const AppLayout = () => {
 
   // Check if user has completed onboarding
   useEffect(() => {
-    const onboardingCompleted = localStorage.getItem('onboardingCompleted');
-    const hasOnboarded = onboardingCompleted === 'true';
-    setHasCompletedOnboarding(hasOnboarded);
+    const checkOnboardingStatus = async () => {
+      const onboardingCompleted = localStorage.getItem('onboardingCompleted');
+      const hasOnboarded = onboardingCompleted === 'true';
+      setHasCompletedOnboarding(hasOnboarded);
 
-    // Show onboarding for new users without API key
-    if (!hasOnboarded) {
-      setOnboardingOpen(true);
-    }
+      // If user hasn't onboarded, check if system is already configured
+      if (!hasOnboarded) {
+        try {
+          const status = await getConfigurationStatus();
+          if (status.configured) {
+            // System is already configured, mark onboarding as complete
+            localStorage.setItem('onboardingCompleted', 'true');
+            setHasCompletedOnboarding(true);
+            setOnboardingOpen(false);
+          } else {
+            // System is not configured, show onboarding
+            setOnboardingOpen(true);
+          }
+        } catch (error) {
+          console.error('Error checking configuration status:', error);
+          // On error, default to showing onboarding
+          setOnboardingOpen(true);
+        }
+      }
+    };
+
+    checkOnboardingStatus();
   }, [apiKey]);
 
   // Validate API key on mount and when it changes
   useEffect(() => {
     const validateApiKey = async () => {
       setIsValidatingApiKey(true);
+      
+      // Check if system is configured before showing API key dialog
+      let systemConfigured = false;
+      try {
+        const status = await getConfigurationStatus();
+        systemConfigured = status.configured;
+      } catch (error) {
+        console.error('Error checking configuration status:', error);
+      }
+      
       if (apiKey) {
         try {
           // Set the API key header for all requests
@@ -240,12 +268,18 @@ const AppLayout = () => {
         } catch (error) {
           console.error('API key validation failed:', error);
           setIsApiKeyValid(false);
-          setApiKeyDialogOpen(true);
+          // Only show API key dialog if system is not configured via environment
+          if (!systemConfigured) {
+            setApiKeyDialogOpen(true);
+          }
         }
       } else {
         setApiKeyHeader(null);
         setIsApiKeyValid(false);
-        setApiKeyDialogOpen(true);
+        // Only show API key dialog if system is not configured via environment
+        if (!systemConfigured) {
+          setApiKeyDialogOpen(true);
+        }
       }
       setIsValidatingApiKey(false);
     };
@@ -392,8 +426,6 @@ const AppLayout = () => {
         onComplete={handleOnboardingComplete}
       />
 
-      {/* Tawk.to Chat Widget */}
-      <TawkChat />
     </SessionContext.Provider>
   );
 };
