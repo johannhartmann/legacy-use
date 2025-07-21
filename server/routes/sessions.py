@@ -165,11 +165,13 @@ async def create_session(
         
         if container_info:
             # Get VNC and noVNC ports from container
-            vnc_port = container_info.ports.get('5900', '')
+            vnc_port = container_info.ports.get('5900', '5900')  # Default to 5900 if not found
             novnc_port = container_info.ports.get('6080', '') or container_info.ports.get('80', '')
             
             # In Kubernetes, ports are not mapped - use internal ports directly
             if settings.CONTAINER_ORCHESTRATOR.lower() == 'kubernetes':
+                # VNC always runs on 5900 inside containers
+                vnc_port = '5900'
                 # Linux target uses nginx on port 80
                 if pool_target_type == 'linux':
                     novnc_port = '80'
@@ -502,6 +504,7 @@ async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
     # Get container details
     container_ip = session.get('container_ip')
     vnc_port = session.get('vnc_port', '5900')  # Default VNC port
+    logger.info(f'[VNC-WS] Session details: container_ip={container_ip}, vnc_port={vnc_port}')
     
     # Connect to shared noVNC proxy WebSocket with target information in headers
     novnc_proxy_host = os.getenv('NOVNC_PROXY_HOST', 'novnc-proxy')
@@ -548,17 +551,17 @@ async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
 
     try:
         # Connect to the shared noVNC proxy with target information in headers
-        connect_kwargs = {
-            'extra_headers': {
-                'X-Session-Id': str(session_id),
-                'X-Target-Host': container_ip,
-                'X-Target-Port': vnc_port
-            }
+        headers = {
+            'X-Session-Id': str(session_id),
+            'X-Target-Host': container_ip,
+            'X-Target-Port': vnc_port
         }
+        
+        connect_kwargs = {}
         if subprotocol:
             connect_kwargs['subprotocols'] = [subprotocol]
             
-        async with websockets.connect(target_ws_url, **connect_kwargs) as ws_client:
+        async with websockets.connect(target_ws_url, additional_headers=headers, **connect_kwargs) as ws_client:
             logger.info(f'[VNC-WS] Connected to container for session {session_id}')
 
             # Create tasks for bidirectional communication
