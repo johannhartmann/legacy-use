@@ -1,5 +1,6 @@
 # Android emulator container for legacy-use
-# Using a specific lighter version if available
+# Note: Android emulator requires KVM which is not available in Kind
+# Consider using this only on bare metal Kubernetes or with nested virtualization
 FROM budtmo/docker-android:emulator_11.0
 
 # Set environment variables for consistent emulator configuration

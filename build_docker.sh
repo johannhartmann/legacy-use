@@ -63,7 +63,11 @@ build_image "legacy-use-android-target" "infra/docker/legacy-use-android-target/
 
 # MCP server build
 echo "🔌 Starting MCP server build..."
-build_image "legacy-use-mcp-server" "mcp-server/Dockerfile" "mcp-server"
+build_image "legacy-use-mcp-server" "infra/docker/legacy-use-mcp/Dockerfile" &
+
+# noVNC proxy build
+echo "🖥️  Starting noVNC proxy build..."
+build_image "legacy-use-novnc-proxy" "infra/docker/legacy-use-novnc-proxy/Dockerfile" "infra/docker/legacy-use-novnc-proxy"
 
 # Wait for remaining builds
 wait

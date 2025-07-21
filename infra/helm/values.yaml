@@ -353,21 +353,24 @@ androidTarget:
     hosts: []
     tls: []
 
-# Windows KubeVirt VM Configuration (Requires KubeVirt in cluster)
-windowsKubevirt:
+# Windows XP KubeVirt VM Configuration (Requires KubeVirt in cluster)
+windowsXpKubevirt:
   enabled: false
-  replicas: 1  # Number of Windows VM instances
+  replicas: 1  # Number of Windows XP VM instances
   
   # VM configuration
-  hostname: "legacy-win"
+  hostname: "legacy-winxp"
   cpu:
     cores: 4
   memory: "8Gi"
   
   # Labels for the VMs
   labels:
-    legacy-use.target-type: "windows-vm"
+    legacy-use.target-type: "windows-xp-vm"
     legacy-use.scalable: "true"
+  
+  # Disk URL for CDI to download (if provided, will use DataVolume instead of containerDisk)
+  diskUrl: ""
   
   # Disk configuration
   # Option 1: Use ephemeral disk (creates new disk for each VM instance)

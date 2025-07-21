@@ -35,6 +35,21 @@ jobs:
           - dockerfile: ./infra/docker/linux-machine/Dockerfile
             image: linux-machine
             context: .
+          - dockerfile: ./infra/docker/legacy-use-mgmt/Dockerfile
+            image: mgmt
+            context: .
+          - dockerfile: ./infra/docker/legacy-use-target/Dockerfile
+            image: target
+            context: .
+          - dockerfile: ./infra/docker/legacy-use-demo-db/Dockerfile
+            image: demo-db
+            context: .
+          - dockerfile: ./infra/docker/legacy-use-android-target/Dockerfile
+            image: android-target
+            context: .
+          - dockerfile: ./mcp-server/Dockerfile
+            image: mcp-server
+            context: ./mcp-server
     
     steps:
       - name: Checkout repository
