@@ -10,11 +10,6 @@ from fastapi import APIRouter, HTTPException, Request
 from server.database import db
 from server.models.base import Target, TargetCreate, TargetUpdate
 from server.settings import settings
-from server.utils.telemetry import (
-    capture_target_created,
-    capture_target_deleted,
-    capture_target_updated,
-)
 
 # Create router
 target_router = APIRouter(prefix='/targets', tags=['Target Management'])
@@ -49,7 +44,6 @@ async def create_target(target: TargetCreate, request: Request):
     """Create a new target."""
     # Convert the Pydantic model to a dictionary and pass it to the database service
     result = db.create_target(target.dict())
-    capture_target_created(request, result.get('id', ''), target)
     return result
 
 
@@ -87,8 +81,6 @@ async def update_target(target_id: UUID, target: TargetUpdate, request: Request)
     updated_target['has_blocking_jobs'] = blocking_info['is_paused']
     updated_target['blocking_jobs_count'] = blocking_info['blocking_jobs_count']
 
-    capture_target_updated(request, target_id, target)
-
     return updated_target
 
 
@@ -98,7 +90,6 @@ async def delete_target(target_id: UUID, request: Request):
     if not db.get_target(target_id):
         raise HTTPException(status_code=404, detail='Target not found')
     db.delete_target(target_id)
-    capture_target_deleted(request, target_id, False)
     return {'message': 'Target archived'}
 
 
@@ -111,5 +102,4 @@ async def hard_delete_target(target_id: UUID, request: Request):
     if not db.get_target(target_id):
         raise HTTPException(status_code=404, detail='Target not found')
     db.hard_delete_target(target_id)
-    capture_target_deleted(request, target_id, True)
     return {'message': 'Target permanently deleted'}

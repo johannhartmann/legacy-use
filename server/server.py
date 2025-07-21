@@ -14,7 +14,6 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 from server.computer_use import APIProvider
 from server.database import db
 from server.routes import api_router, job_router, target_router
-from server.routes.containers import container_router
 from server.routes.diagnostics import diagnostics_router
 from server.routes.sessions import session_router, websocket_router
 from server.routes.settings import settings_router
@@ -200,11 +199,6 @@ app.include_router(
 # Include settings router
 app.include_router(settings_router)
 
-# Include container pool router (always enabled for scaling)
-app.include_router(
-    container_router,
-    include_in_schema=not settings.HIDE_INTERNAL_API_ENDPOINTS_IN_DOC,
-)
 
 
 # Scheduled task to prune old logs

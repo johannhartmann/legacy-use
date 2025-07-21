@@ -147,16 +147,8 @@ async def create_session(
         # Use container pool to allocate existing container
         from server.utils.container_pool import container_pool
         
-        # Map target type to pool target type (remove vpn suffix)
-        pool_target_type = client_type
-        if pool_target_type == 'vnc':
-            # Map generic vnc to specific target types based on the target configuration
-            if 'wine' in target.get('name', '').lower():
-                pool_target_type = 'wine'
-            elif 'linux' in target.get('name', '').lower():
-                pool_target_type = 'linux'
-            elif 'android' in target.get('name', '').lower():
-                pool_target_type = 'android'
+        # Use pool_type from the target configuration, fallback to client_type
+        pool_target_type = target.get('pool_type', client_type)
         
         # Allocate container from pool
         container_info = await container_pool.allocate_container(

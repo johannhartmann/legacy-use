@@ -26,7 +26,6 @@ import httpx
 # Remove direct import of APIGatewayCore
 from server.database.service import DatabaseService
 from server.models.base import Job, JobStatus
-from server.utils.telemetry import capture_job_log_created, capture_job_resolved
 
 # Add import for session management functions
 from .session_management import launch_session_for_target
@@ -205,7 +204,6 @@ def add_job_log(job_id: str, log_type: str, content: Any):
         log_data['content_trimmed'] = content_trimmed
 
         db.create_job_log(log_data)
-        capture_job_log_created(job_id, log_data)
     except Exception as e:
         logger.error(f'Failed to add log for job {job_id}: {str(e)}')
 
@@ -629,7 +627,6 @@ async def execute_api_in_background(job: Job):
             job_with_tokens['total_input_tokens'] = metrics['total_input_tokens']
             job_with_tokens['total_output_tokens'] = metrics['total_output_tokens']
 
-            capture_job_resolved(None, job_with_tokens, manual_resolution=False)
 
         except asyncio.CancelledError:
             # Job was cancelled during API execution

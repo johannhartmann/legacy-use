@@ -12,8 +12,8 @@ from datetime import datetime, timedelta
 from server.database import db
 from server.utils.docker_manager import (
     check_target_container_health,
-    get_container_status,
 )
+from server.utils.orchestrator_utils import get_container_status
 
 logger = logging.getLogger(__name__)
 

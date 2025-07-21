@@ -123,6 +123,7 @@ class Target(BaseModel):
     vpn_password: Optional[str] = None
     width: int = 1024
     height: int = 768
+    novnc_port: str = "6080"
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     is_archived: bool = False
@@ -152,6 +153,7 @@ class TargetCreate(BaseModel):
     vpn_password: Optional[str] = None
     width: int = 1024
     height: int = 768
+    novnc_port: str = "6080"
 
 
 class TargetUpdate(BaseModel):
@@ -166,6 +168,7 @@ class TargetUpdate(BaseModel):
     vpn_password: Optional[str] = None
     width: Optional[int] = None
     height: Optional[int] = None
+    novnc_port: Optional[str] = None
 
 
 class Session(BaseModel):

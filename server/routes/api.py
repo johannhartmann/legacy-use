@@ -13,11 +13,6 @@ from server.core import APIGatewayCore
 from server.database import db
 from server.models.base import APIDefinition, Parameter
 from server.settings import settings
-from server.utils.telemetry import (
-    capture_api_created,
-    capture_api_deleted,
-    capture_api_updated,
-)
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -309,7 +304,6 @@ async def import_api_definition(body: ImportApiDefinitionRequest, request: Reque
         # Reload API definitions in core
         await core.load_api_definitions()
 
-        capture_api_created(request, api_def, api_id, str(version_number))
         return {'status': 'success', 'message': message}
     except Exception as e:
         logger.error(f'Error importing API definition: {str(e)}')
@@ -389,8 +383,6 @@ async def update_api_definition(
         # Reload API definitions in core
         await core.load_api_definitions()
 
-        capture_api_updated(request, api_def, existing_api.id, str(version_number))
-
         return {
             'status': 'success',
             'message': f"Updated API '{api_def['name']}' with new version {version_number}",
@@ -425,8 +417,6 @@ async def archive_api_definition(api_name: str, request: Request):
 
         # Reload API definitions in core
         await core.load_api_definitions()
-
-        capture_api_deleted(request, api_definition.id, api_name)
 
         return {
             'status': 'success',

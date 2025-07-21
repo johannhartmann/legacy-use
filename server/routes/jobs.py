@@ -41,13 +41,6 @@ from server.utils.job_execution import (
     running_job_tasks,
 )
 from server.utils.job_utils import compute_job_metrics
-from server.utils.telemetry import (
-    capture_job_canceled,
-    capture_job_created,
-    capture_job_interrupted,
-    capture_job_resolved,
-    capture_job_resumed,
-)
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -194,7 +187,6 @@ async def create_job(target_id: UUID, job: JobCreate, request: Request):
 
     await enqueue_job(job_obj)
 
-    capture_job_created(request, job_obj)
 
     return job_obj
 
@@ -380,7 +372,6 @@ async def interrupt_job(target_id: UUID, job_id: UUID, request: Request):
         logger.info(f"Interrupted job {job_id_str} in state '{current_status}'.")
 
     if interrupted:
-        capture_job_interrupted(request, job_model, current_status)
         return {'message': f'Job {job_id} interrupt requested.'}
     else:
         # Check if the job is in a terminal state that cannot be interrupted
@@ -457,7 +448,6 @@ async def cancel_job(target_id: UUID, job_id: UUID, request: Request):
         logger.info(f"Canceled job {job_id_str} in state '{current_status}'.")
 
     if canceled:
-        capture_job_canceled(request, job_model)
         return {'message': f'Job {job_id} canceled successfully.'}
     else:
         # Check if the job is in a state that cannot be canceled
@@ -619,7 +609,6 @@ async def resolve_job(
         # Process the next job if any
         asyncio.create_task(process_next_job())
 
-    capture_job_resolved(request, updated_job, manual_resolution=True)
 
     return updated_job
 
@@ -721,6 +710,5 @@ async def resume_job(target_id: UUID, job_id: UUID, request: Request):
     # Add log entry for the resume action
     add_job_log(job_id_str, 'system', f'Job resumed from {current_status} state')
 
-    capture_job_resumed(request, job_obj)
 
     return job_obj
