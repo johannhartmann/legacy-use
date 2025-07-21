@@ -2,6 +2,15 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+# Secrets configuration
+secrets:
+  # Create a Kubernetes secret with API keys
+  create: false
+  # API key for legacy-use authentication
+  apiKey: ""
+  # Anthropic API key for AI functionality
+  anthropicApiKey: ""
+
 # Global settings
 imagePullSecrets: []
 nameOverride: ""
@@ -101,6 +110,33 @@ management:
   securityContext: {}
   
   podAnnotations: {}
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Shared noVNC Proxy Configuration
+novncProxy:
+  enabled: true
+  
+  image:
+    repository: legacy-use-novnc-proxy
+    pullPolicy: IfNotPresent
+    tag: "local"
+  
+  replicas: 1
+  
+  service:
+    type: ClusterIP
+    port: 80
+  
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
   
   nodeSelector: {}
   tolerations: []
@@ -337,7 +373,7 @@ windowsKubevirt:
   # Option 1: Use ephemeral disk (creates new disk for each VM instance)
   ephemeralDisk: false
   # Option 2: Use containerDisk (recommended for scaling)
-  containerDiskImage: "quay.io/kubevirt/windows11:latest"
+  containerDiskImage: "quay.io/containerdisks/fedora:latest"  # TODO: Replace with actual Windows image
   
   # Persistence configuration (for ephemeral disk template)
   persistence:
