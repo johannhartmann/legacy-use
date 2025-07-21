@@ -38,6 +38,7 @@ const CreateTarget = () => {
     username: '',
     password: '',
     port: DEFAULT_PORTS.vnc,
+    vnc_path: 'vnc.html',
     vpn_config: '',
     vpn_username: '',
     vpn_password: '',
@@ -358,6 +359,19 @@ const CreateTarget = () => {
                 disabled={loading}
                 required
                 InputProps={{ inputProps: { min: 1 } }}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="VNC Path"
+                name="vnc_path"
+                value={targetData.vnc_path}
+                onChange={handleChange}
+                error={!!validationErrors.vnc_path}
+                helperText={validationErrors.vnc_path || 'Path to VNC viewer HTML file (e.g., vnc.html, static/vnc.html)'}
+                disabled={loading}
               />
             </Grid>
 

@@ -160,6 +160,7 @@ const TargetList = () => {
         password: targetDetails.password || '',
         width: targetDetails.width || 1024,
         height: targetDetails.height || 768,
+        vnc_path: targetDetails.vnc_path || 'vnc.html',
         vpn_config: targetDetails.vpn_config || '',
         vpn_username: targetDetails.vpn_username || '',
         vpn_password: targetDetails.vpn_password || '',
@@ -653,6 +654,20 @@ const TargetList = () => {
                 required
                 margin="normal"
                 InputProps={{ inputProps: { min: 1 } }}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="VNC Path"
+                name="vnc_path"
+                value={editFormData.vnc_path || 'vnc.html'}
+                onChange={handleEditChange}
+                error={!!validationErrors.vnc_path}
+                helperText={validationErrors.vnc_path || 'Path to VNC viewer HTML file (e.g., vnc.html, static/vnc.html)'}
+                disabled={editInProgress}
+                margin="normal"
               />
             </Grid>
 

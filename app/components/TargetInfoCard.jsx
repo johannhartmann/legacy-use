@@ -73,6 +73,13 @@ const TargetInfoCard = ({ target, formatDate }) => {
               </Typography>
             </Grid>
           )}
+          {target.vnc_path && (
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="textSecondary">
+                VNC Path: {target.vnc_path}
+              </Typography>
+            </Grid>
+          )}
           {target.username && (
             <Grid item xs={12} sm={6}>
               <Typography variant="body2" color="textSecondary">

@@ -5,7 +5,6 @@ import Typography from '@mui/material/Typography';
 import { useContext, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { SessionContext } from '../App';
-import { getTarget } from '../services/apiService';
 
 const VncViewer = () => {
   const location = useLocation();
@@ -14,7 +13,6 @@ const VncViewer = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [cookieSet, setCookieSet] = useState(false);
-  const [target, setTarget] = useState(null);
 
   // Get session ID from context or URL
   useEffect(() => {
@@ -39,23 +37,6 @@ const VncViewer = () => {
       setLoading(false);
     }
   }, [location.pathname, selectedSessionId]);
-
-  // Fetch target information when we have a session
-  useEffect(() => {
-    if (currentSession && currentSession.target_id) {
-      const fetchTarget = async () => {
-        try {
-          const targetData = await getTarget(currentSession.target_id);
-          setTarget(targetData);
-        } catch (err) {
-          console.error('Error fetching target details:', err);
-          setError('Failed to load target information');
-        }
-      };
-      
-      fetchTarget();
-    }
-  }, [currentSession]);
 
   // set cookie for api key
   // Future improvement: session-based authentication approach on the backend
@@ -135,10 +116,8 @@ const VncViewer = () => {
 
   const vncParams = `resize=scale&autoconnect=1&view_only=1&reconnect=1&reconnect_delay=2000&path=${websocketPath}`;
 
-  // Use the vnc_path from the target configuration
-  // This allows each target to specify its own VNC HTML path
-  const vncHtmlPath = target?.vnc_path || 'vnc.html';
-  const vncUrl = `${baseApiUrl}/${proxyPath}/${vncHtmlPath}?${vncParams}`;
+  // Construct the VNC URL - containers serve vnc.html at root
+  const vncUrl = `${baseApiUrl}/${proxyPath}/vnc.html?${vncParams}`;
 
   return (
     <Paper
