@@ -89,19 +89,47 @@ android_image = docker_build_local(
     'infra/docker/legacy-use-android-target/Dockerfile'
 )
 
+novnc_proxy_image = docker_build_local(
+    'legacy-use-novnc-proxy',
+    'infra/docker/legacy-use-novnc-proxy',
+    'infra/docker/legacy-use-novnc-proxy/Dockerfile'
+)
+
 # Get environment variables and create a temporary values file with substituted values
 anthropic_api_key = os.getenv('ANTHROPIC_API_KEY', '')
-legacy_use_api_key = os.getenv('LEGACY_USE_API_KEY', '')
+legacy_use_api_key = os.getenv('LEGACY_USE_API_KEY', os.getenv('API_KEY', ''))
+
+# Create/update Kubernetes secret from environment variables
+if anthropic_api_key or legacy_use_api_key:
+    print("Creating/updating Kubernetes secret for API keys...")
+    secret_cmd = (
+        "kubectl create secret generic legacy-use-secrets " +
+        "--from-literal=anthropic-api-key='{}' ".format(anthropic_api_key) +
+        "--from-literal=api-key='{}' ".format(legacy_use_api_key) +
+        "--namespace={} ".format(k8s_namespace) +
+        "--dry-run=client -o yaml | kubectl apply -f -"
+    )
+    local(secret_cmd, quiet=True)
 
 # Create values override string
-values_override = """
+# If we have secrets, use existingSecret; otherwise use env vars
+if anthropic_api_key or legacy_use_api_key:
+    values_override = """
+management:
+  existingSecret: legacy-use-secrets
+mcpServer:
+  existingSecret: legacy-use-secrets
+"""
+else:
+    values_override = """
 management:
   env:
     ANTHROPIC_API_KEY: "{}"
+    API_KEY: "{}"
 mcpServer:
   env:
     LEGACY_USE_API_KEY: "{}"
-""".format(anthropic_api_key, legacy_use_api_key)
+""".format(anthropic_api_key, legacy_use_api_key, legacy_use_api_key)
 
 # Write temporary values file outside of watched paths
 override_file = '/var/tmp/tilt-values-override.yaml'
@@ -127,6 +155,8 @@ k8s_yaml(helm(
         'linuxTarget.image.tag={}'.format(linux_image.rsplit(':', 1)[1] if ':' in linux_image else 'latest'),
         'androidTarget.image.repository={}'.format(android_image.rsplit(':', 1)[0]),
         'androidTarget.image.tag={}'.format(android_image.rsplit(':', 1)[1] if ':' in android_image else 'latest'),
+        'novncProxy.image.repository={}'.format(novnc_proxy_image.rsplit(':', 1)[0]),
+        'novncProxy.image.tag={}'.format(novnc_proxy_image.rsplit(':', 1)[1] if ':' in novnc_proxy_image else 'latest'),
         'windowsKubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
     ]
 ))
@@ -183,6 +213,13 @@ k8s_resource(
     labels=['targets']
 )
 
+k8s_resource(
+    'legacy-use-novnc-proxy',
+    port_forwards='8090:80',  # noVNC proxy
+    labels=['core'],
+    resource_deps=['legacy-use-mgmt']
+)
+
 # Windows KubeVirt resources
 if kubevirt_installed:
     # Windows image builder as a local resource
@@ -233,6 +270,15 @@ local_resource(
     labels=['tools']
 )
 
+# Local resource to show current API key from Kubernetes secret
+local_resource(
+    'show-api-key',
+    cmd='kubectl get secret legacy-use-secrets -n legacy-use -o jsonpath=\'{.data.api-key}\' 2>/dev/null | base64 -d | xargs -I {} echo -e "\\n🔑 Current API Key: {}\\n\\n📋 Usage:\\n1. Open http://localhost:5173\\n2. Enter this API key when prompted\\n\\n💡 Or set in your environment:\\nexport API_KEY={}"',
+    labels=['tools'],
+    auto_init=False,
+    trigger_mode=TRIGGER_MODE_MANUAL
+)
+
 # UI buttons for common tasks
 local_resource(
     'frontend-lint',
@@ -260,15 +306,16 @@ Services will be available at:
 - Backend API: http://localhost:8088
 - MCP Server: http://localhost:3000/mcp
 - PostgreSQL: localhost:5432
+- noVNC Proxy: http://localhost:8090
 
 Container Targets:
 - Wine Target VNC: vnc://localhost:5900 (password: wine)
-- Wine Target noVNC: http://localhost:6080
+- Wine Target noVNC: Access via Management UI
 - Linux Target VNC: vnc://localhost:5901 (password: password123)
-- Linux Target noVNC: http://localhost:6081/static/vnc.html
+- Linux Target noVNC: Access via Management UI
 - Android Target ADB: localhost:5555
 - Android Target VNC: vnc://localhost:5902
-- Android Target noVNC: http://localhost:6082""")
+- Android Target noVNC: Access via Management UI""")
 
 if kubevirt_installed:
     print("""
@@ -287,7 +334,10 @@ Windows KubeVirt Target: Not available (KubeVirt not installed)
 To enable: Install KubeVirt in your cluster""")
 
 print("""
-To generate an API key:
+To view the current API key:
+- Click "show-api-key" in the Tilt UI
+
+To generate a new API key:
 - Click "generate-api-key" in the Tilt UI
 
 To run database migrations:
