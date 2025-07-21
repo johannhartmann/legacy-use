@@ -1,0 +1,160 @@
+# Windows KubeVirt Target Configuration
+# This values file configures Windows VMs running on KubeVirt
+
+# Enable Windows KubeVirt target
+windowsKubevirt:
+  enabled: true
+  
+  # VM run strategy: Always, Manual, Halted, RerunOnFailure
+  runStrategy: Always
+  
+  # VM hostname
+  hostname: legacy-win
+  
+  # VM resources
+  resources:
+    cpu:
+      cores: 4
+      threads: 1
+    memory: 8Gi
+  
+  # Disk configuration
+  disk:
+    size: 64Gi
+    storageClass: local-path  # Change for production
+    # Optionally specify a pre-existing PVC with Windows image
+    # existingClaim: windows-base-image
+  
+  # VirtIO drivers for Windows
+  virtioDrivers:
+    image: kubevirt/virtio-container-disk:latest
+  
+  # Cloud-init configuration (optional, for cloudbase-init)
+  cloudInit:
+    enabled: false
+    userData: |
+      # Add custom cloud-init configuration here
+      # Note: Windows uses cloudbase-init, not cloud-init
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    additionalPorts: []
+    # Example additional ports:
+    # - name: custom-app
+    #   port: 8080
+    #   targetPort: 8080
+  
+  # noVNC configuration for web access
+  novnc:
+    enabled: true
+    image: theasp/novnc:latest
+    imagePullPolicy: IfNotPresent
+    password: "windows"  # VNC password
+    service:
+      type: ClusterIP
+      port: 6083  # Different from other targets
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "100m"
+      limits:
+        memory: "128Mi"
+        cpu: "200m"
+
+# Disable other targets when using Windows KubeVirt
+wineTarget:
+  enabled: false
+
+linuxTarget:
+  enabled: false
+
+androidTarget:
+  enabled: false
+
+# Backend configuration remains the same
+backend:
+  enabled: true
+  image:
+    repository: legacy-use-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 8088
+  
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+# Frontend configuration remains the same
+frontend:
+  enabled: true
+  image:
+    repository: legacy-use-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 5173
+  
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# Management service configuration
+mgmt:
+  enabled: true
+  image:
+    repository: legacy-use-mgmt
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 8001
+  
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: legacy-use.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+        - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /mgmt
+          pathType: Prefix
+          service: mgmt
+        - path: /windows-vnc
+          pathType: Prefix
+          service: windows-novnc
+  tls: []
+
+# Global configuration
+global:
+  storageClass: local-path
+  # Add any global KubeVirt-specific settings here
