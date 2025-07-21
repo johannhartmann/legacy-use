@@ -145,19 +145,7 @@ k8s_yaml(helm(
     namespace=k8s_namespace,
     values=values_files,
     set=[
-        'management.image.repository={}'.format(mgmt_image.rsplit(':', 1)[0]),
-        'management.image.tag={}'.format(mgmt_image.rsplit(':', 1)[1] if ':' in mgmt_image else 'latest'),
-        'mcpServer.image.repository={}'.format(mcp_image.rsplit(':', 1)[0]),
-        'mcpServer.image.tag={}'.format(mcp_image.rsplit(':', 1)[1] if ':' in mcp_image else 'latest'),
-        'wineTarget.image.repository={}'.format(wine_image.rsplit(':', 1)[0]),
-        'wineTarget.image.tag={}'.format(wine_image.rsplit(':', 1)[1] if ':' in wine_image else 'latest'),
-        'linuxTarget.image.repository={}'.format(linux_image.rsplit(':', 1)[0]),
-        'linuxTarget.image.tag={}'.format(linux_image.rsplit(':', 1)[1] if ':' in linux_image else 'latest'),
-        'androidTarget.image.repository={}'.format(android_image.rsplit(':', 1)[0]),
-        'androidTarget.image.tag={}'.format(android_image.rsplit(':', 1)[1] if ':' in android_image else 'latest'),
-        'novncProxy.image.repository={}'.format(novnc_proxy_image.rsplit(':', 1)[0]),
-        'novncProxy.image.tag={}'.format(novnc_proxy_image.rsplit(':', 1)[1] if ':' in novnc_proxy_image else 'latest'),
-        'windowsKubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
+        'windowsXpKubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
     ]
 ))
 
@@ -225,7 +213,7 @@ if kubevirt_installed:
     # Windows image builder as a local resource
     local_resource(
         'windows-image-builder',
-        cmd='docker build -t localhost:5000/legacy-use-windows-image-builder -f infra/docker/legacy-use-windows-image-builder/Dockerfile infra/docker/legacy-use-windows-image-builder && docker push localhost:5000/legacy-use-windows-image-builder',
+        cmd='docker build -t {}/legacy-use-windows-image-builder -f infra/docker/legacy-use-windows-image-builder/Dockerfile infra/docker/legacy-use-windows-image-builder && docker push {}/legacy-use-windows-image-builder'.format(local_registry, local_registry),
         labels=['build'],
         auto_init=False,
         trigger_mode=TRIGGER_MODE_MANUAL
