@@ -63,7 +63,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.mcpServer.existingSecret }}
-                  key: legacy-use-api-key
+                  key: api-key
               {{- end }}
             - name: LOG_LEVEL
               value: {{ .Values.mcpServer.logLevel | quote }}

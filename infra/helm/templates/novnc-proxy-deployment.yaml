@@ -33,7 +33,7 @@ spec:
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "legacy-use.fullname" . }}-api-key
+                  name: {{ .Values.management.existingSecret }}
                   key: api-key
                   optional: true
           ports:
