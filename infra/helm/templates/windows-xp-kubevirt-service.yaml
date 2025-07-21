@@ -1,0 +1,23 @@
+{{- if .Values.windowsXpKubevirt.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-windows-xp-kubevirt
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: windows-xp-kubevirt
+spec:
+  type: {{ .Values.windowsXpKubevirt.service.type }}
+  ports:
+    - port: {{ .Values.windowsXpKubevirt.service.rdpPort }}
+      targetPort: 3389
+      protocol: TCP
+      name: rdp
+    - port: {{ .Values.windowsXpKubevirt.service.vncPort }}
+      targetPort: 5900
+      protocol: TCP
+      name: vnc
+  selector:
+    {{- include "legacy-use.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: windows-xp-kubevirt
+{{- end }}

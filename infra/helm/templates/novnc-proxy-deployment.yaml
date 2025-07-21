@@ -25,7 +25,7 @@ spec:
       serviceAccountName: {{ include "legacy-use.serviceAccountName" . }}
       containers:
         - name: novnc-proxy
-          image: "{{ .Values.novncProxy.image.repository }}:{{ .Values.novncProxy.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.novncProxy.image.repository }}:{{ .Values.novncProxy.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.novncProxy.image.pullPolicy }}
           env:
             - name: LEGACY_USE_URL

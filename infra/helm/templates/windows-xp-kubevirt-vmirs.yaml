@@ -1,0 +1,96 @@
+{{- if .Values.windowsXpKubevirt.enabled -}}
+apiVersion: kubevirt.io/v1
+kind: VirtualMachineInstanceReplicaSet
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-windows-xp-vmirs
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: windows-xp-kubevirt
+spec:
+  replicas: {{ .Values.windowsXpKubevirt.replicas }}
+  selector:
+    matchLabels:
+      {{- include "legacy-use.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: windows-xp-kubevirt
+  template:
+    metadata:
+      labels:
+        {{- include "legacy-use.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: windows-xp-kubevirt
+        {{- with .Values.windowsXpKubevirt.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      domain:
+        cpu:
+          cores: {{ .Values.windowsXpKubevirt.cpu.cores }}
+        memory:
+          guest: {{ .Values.windowsXpKubevirt.memory }}
+        devices:
+          disks:
+          - name: windows-disk
+            disk:
+              bus: virtio
+          - name: cloudinit
+            disk:
+              bus: sata
+          interfaces:
+          - name: default
+            masquerade: {}
+            model: rtl8139
+        resources:
+          requests:
+            memory: {{ .Values.windowsXpKubevirt.memory }}
+            cpu: {{ .Values.windowsXpKubevirt.cpu.cores }}
+      networks:
+      - name: default
+        pod: {}
+      volumes:
+      - name: windows-disk
+        {{- if .Values.windowsXpKubevirt.diskUrl }}
+        dataVolume:
+          name: {{ include "legacy-use.fullname" . }}-windows-xp-dv
+        {{- else }}
+        containerDisk:
+          image: localhost:5000/legacy-use-windows-xp-containerdisk:latest
+          imagePullPolicy: Always
+        {{- end }}
+      - name: cloudinit
+        cloudInitNoCloud:
+          userData: |
+            #cloud-config
+            hostname: {{ .Values.windowsXpKubevirt.hostname }}
+            {{- if .Values.windowsXpKubevirt.userData }}
+            {{- .Values.windowsXpKubevirt.userData | nindent 12 }}
+            {{- end }}
+      dataVolumeTemplates:
+      {{- if .Values.windowsXpKubevirt.diskUrl }}
+      - metadata:
+          name: {{ include "legacy-use.fullname" . }}-windows-xp-dv
+        spec:
+          storage:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: {{ .Values.windowsXpKubevirt.disk.size | default "32Gi" }}
+            {{- if .Values.windowsXpKubevirt.disk.storageClass }}
+            storageClassName: {{ .Values.windowsXpKubevirt.disk.storageClass }}
+            {{- end }}
+          source:
+            http:
+              url: {{ .Values.windowsXpKubevirt.diskUrl }}
+      {{- end }}
+      {{- with .Values.windowsXpKubevirt.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.windowsXpKubevirt.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.windowsXpKubevirt.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

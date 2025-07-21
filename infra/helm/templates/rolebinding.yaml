@@ -1,0 +1,16 @@
+{{- if .Values.serviceAccount.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-manager
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "legacy-use.fullname" . }}-manager
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "legacy-use.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

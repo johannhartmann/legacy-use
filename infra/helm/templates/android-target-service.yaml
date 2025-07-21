@@ -17,10 +17,6 @@ spec:
       targetPort: vnc
       protocol: TCP
       name: vnc
-    - port: {{ .Values.androidTarget.service.novncPort }}
-      targetPort: novnc
-      protocol: TCP
-      name: novnc
   selector:
     app.kubernetes.io/name: {{ include "legacy-use.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}

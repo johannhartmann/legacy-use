@@ -1,0 +1,38 @@
+{{- if .Values.serviceAccount.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-manager
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+rules:
+  # Allow management of pods
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  
+  # Allow management of deployments and statefulsets
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  
+  # Allow management of deployments/scale and statefulsets/scale
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale", "statefulsets/scale"]
+    verbs: ["get", "update", "patch"]
+  
+  # Allow management of services (for discovering target services)
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch"]
+  
+  # Allow management of VirtualMachineInstanceReplicaSets for Windows VMs
+  - apiGroups: ["kubevirt.io"]
+    resources: ["virtualmachineinstancereplicasets"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  
+  # Allow management of VirtualMachineInstances (for monitoring)
+  - apiGroups: ["kubevirt.io"]
+    resources: ["virtualmachineinstances"]
+    verbs: ["get", "list", "watch"]
+{{- end }}

@@ -41,7 +41,7 @@ spec:
         - name: mcp-server
           securityContext:
             {{- toYaml .Values.mcpServer.securityContext | nindent 12 }}
-          image: "{{ .Values.mcpServer.image.repository }}:{{ .Values.mcpServer.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.mcpServer.image.repository }}:{{ .Values.mcpServer.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.mcpServer.image.pullPolicy }}
           ports:
             - name: http

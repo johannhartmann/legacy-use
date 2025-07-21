@@ -1,0 +1,35 @@
+{{- if and .Values.windowsXpKubevirt.enabled .Values.windowsXpKubevirt.dataVolumeTemplate.enabled -}}
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-windows-xp-dv
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: windows-xp-kubevirt
+spec:
+  source:
+    {{- if .Values.windowsXpKubevirt.dataVolumeTemplate.source.http }}
+    http:
+      url: {{ .Values.windowsXpKubevirt.dataVolumeTemplate.source.http.url }}
+    {{- else if .Values.windowsXpKubevirt.dataVolumeTemplate.source.registry }}
+    registry:
+      url: {{ .Values.windowsXpKubevirt.dataVolumeTemplate.source.registry.url }}
+    {{- else if .Values.windowsXpKubevirt.dataVolumeTemplate.source.pvc }}
+    pvc:
+      name: {{ .Values.windowsXpKubevirt.dataVolumeTemplate.source.pvc.name }}
+      namespace: {{ .Values.windowsXpKubevirt.dataVolumeTemplate.source.pvc.namespace }}
+    {{- end }}
+  pvc:
+    accessModes:
+      - {{ .Values.windowsXpKubevirt.persistence.accessMode }}
+    {{- if .Values.windowsXpKubevirt.persistence.storageClass }}
+    {{- if (eq "-" .Values.windowsXpKubevirt.persistence.storageClass) }}
+    storageClassName: ""
+    {{- else }}
+    storageClassName: {{ .Values.windowsXpKubevirt.persistence.storageClass | quote }}
+    {{- end }}
+    {{- end }}
+    resources:
+      requests:
+        storage: {{ .Values.windowsXpKubevirt.persistence.size }}
+{{- end }}

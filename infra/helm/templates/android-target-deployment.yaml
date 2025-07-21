@@ -36,7 +36,7 @@ spec:
         - name: android
           securityContext:
             {{- toYaml .Values.androidTarget.securityContext | nindent 12 }}
-          image: "{{ .Values.androidTarget.image.repository }}:{{ .Values.androidTarget.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.androidTarget.image.repository }}:{{ .Values.androidTarget.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.androidTarget.image.pullPolicy }}
           env:
             - name: EMULATOR_DEVICE
@@ -48,9 +48,15 @@ spec:
             - name: EMULATOR_NO_BOOT_ANIM
               value: "1"
             - name: DEVICE
-              value: "Samsung Galaxy S10"
+              value: "samsung_galaxy_s10_11.0"
             - name: EMULATOR_ARGS
-              value: "-no-window -no-audio -no-boot-anim -gpu swiftshader_indirect"
+              value: "-no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -partition-size 2048"
+            - name: EMULATOR_NO_SKIN
+              value: "1"
+            - name: SCREEN_WIDTH
+              value: "800"
+            - name: SCREEN_HEIGHT
+              value: "900"
           ports:
             - name: adb
               containerPort: 5555
@@ -63,6 +69,8 @@ spec:
               mountPath: /home/androidusr/.android
             - name: android-apps
               mountPath: /home/androidusr/apps
+            - name: android-emulator
+              mountPath: /home/androidusr/emulator
             - name: dshm
               mountPath: /dev/shm
           resources:
@@ -82,6 +90,9 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
+        - name: android-emulator
+          emptyDir:
+            sizeLimit: 10Gi
         - name: dshm
           emptyDir:
             medium: Memory

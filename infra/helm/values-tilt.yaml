@@ -2,6 +2,7 @@
 # This overrides default values.yaml for local development
 
 # Use local registry for all images
+# Note: With containerd config patches, we can use localhost:5000
 global:
   imageRegistry: localhost:5000
 
@@ -30,7 +31,7 @@ database:
 management:
   replicaCount: 1
   image:
-    repository: localhost:5000/legacy-use-mgmt
+    repository: legacy-use-mgmt
     tag: latest
     pullPolicy: Always
   
@@ -76,7 +77,7 @@ mcpServer:
   enabled: true
   replicaCount: 1
   image:
-    repository: localhost:5000/legacy-use-mcp-server
+    repository: legacy-use-mcp-server
     tag: latest
     pullPolicy: Always
   
@@ -99,7 +100,7 @@ wineTarget:
   enabled: true
   replicas: 1
   image:
-    repository: localhost:5000/legacy-use-wine-target
+    repository: legacy-use-wine-target
     tag: latest
     pullPolicy: Always
   
@@ -118,7 +119,7 @@ linuxTarget:
   enabled: true
   replicas: 1
   image:
-    repository: localhost:5000/linux-machine
+    repository: linux-machine
     tag: latest
     pullPolicy: Always
   
@@ -134,7 +135,7 @@ androidTarget:
   enabled: true
   replicas: 1
   image:
-    repository: localhost:5000/legacy-use-android-target
+    repository: legacy-use-android-target
     tag: latest
     pullPolicy: Always
   
@@ -149,15 +150,15 @@ androidTarget:
       cpu: 1
       memory: 1Gi
 
-# Windows KubeVirt VM (requires KubeVirt to be installed)
-windowsKubevirt:
+# Windows XP KubeVirt VM (requires KubeVirt to be installed)
+windowsXpKubevirt:
   enabled: true  # KubeVirt is installed in our Kind cluster
   
   # Number of replicas for VMIRS
   replicas: 1
   
   # VM hostname
-  hostname: legacy-win-dev
+  hostname: legacy-winxp-dev
   
   # VM CPU and memory configuration
   cpu:
@@ -166,8 +167,11 @@ windowsKubevirt:
   
   # Labels for the VMs
   labels:
-    legacy-use.target-type: "windows-vm"
+    legacy-use.target-type: "windows-xp-vm"
     legacy-use.scalable: "true"
+  
+  # Windows XP disk URL - CDI will download from this URL
+  diskUrl: "https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=winxp.qcow2"
   
   # Disk configuration
   disk:
@@ -177,6 +181,12 @@ windowsKubevirt:
   # VirtIO drivers
   virtioDrivers:
     image: kubevirt/virtio-container-disk:latest
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    rdpPort: 3389
+    vncPort: 5900
   
   # Cloud-init user data for Windows
   userData: |

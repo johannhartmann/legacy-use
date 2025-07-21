@@ -34,14 +34,11 @@ spec:
         - name: linux-machine
           securityContext:
             {{- toYaml .Values.linuxTarget.securityContext | nindent 12 }}
-          image: "{{ .Values.linuxTarget.image.repository }}:{{ .Values.linuxTarget.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.linuxTarget.image.repository }}:{{ .Values.linuxTarget.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.linuxTarget.image.pullPolicy }}
           ports:
             - name: vnc
               containerPort: 5900
-              protocol: TCP
-            - name: novnc
-              containerPort: 80
               protocol: TCP
           resources:
             {{- toYaml .Values.linuxTarget.resources | nindent 12 }}
