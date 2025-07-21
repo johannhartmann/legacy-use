@@ -47,7 +47,23 @@
   - **Note**: You'll need credits in your Anthropic account for API usage
 
 #### For Development Only
-Want to contribute or modify the code? You'll need Node.js and Python locally for development.
+Want to contribute or modify the code? You'll need additional tools:
+
+**Local Development Tools:**
+- **Node.js 20+** - Frontend development
+- **Python 3.12+** - Backend development
+- **uv** - Fast Python package manager ([install guide](https://docs.astral.sh/uv/))
+
+**Kubernetes Development Tools:**
+- **kubectl** - Kubernetes CLI
+  - [Install kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl)
+- **helm** - Kubernetes package manager
+  - [Install helm](https://helm.sh/docs/intro/install/)
+- **kind** - Kubernetes in Docker for local development
+  - [Install kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
+- **tilt** - Smart rebuilds and live updates for Kubernetes
+  - [Install tilt](https://docs.tilt.dev/install.html)
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete development setup guide.
 
 ### Setup Steps
@@ -75,8 +91,9 @@ uv run python generate_api_key.py
 # Option B: Production mode
 ./start_docker_compose.sh --production
 
-# Option C: Individual containers (legacy)
-LEGACY_USE_DEBUG=1 ./start_docker.sh
+# Option C: Kubernetes with Tilt (advanced - hot reload development)
+./scripts/kind-setup.sh  # One-time setup
+./scripts/tilt-up.sh     # Start development environment
 ```
 
 
@@ -168,7 +185,7 @@ Pre-configured with GnuCash for testing:
 ```bash
 # Access via web browser
 open http://localhost:6081/vnc.html
-# Password: password123
+# No password required
 ```
 
 **Target Benefits Comparison:**
@@ -280,26 +297,6 @@ Creating custom automation scripts for your applications? Check out our comprehe
 
 ---
 
-## 📡 Telemetry
-
-We collect minimal anonymous usage data to improve the product. This helps us understand:
-- Which features are most useful
-- Performance bottlenecks
-- Common error patterns
-
-**What we collect**: Usage statistics, error logs, feature interactions
-**What we DON'T collect**: Your API keys, target machine data, or sensitive information
-
-**Disable anytime** by adding to your `.env` file:
-```bash
-VITE_PUBLIC_DISABLE_TRACKING=true
-```
-
-**Full transparency**: See exactly what we track in the code:
-`app/index.jsx`, `app/components/OnboardingWizard.jsx`, `app/services/telemetryService.jsx`, `server/server.py`, `server/utils/telemetry.py`
-
----
-
 ## 🔌 MCP Server Integration
 
 Legacy-use includes an MCP (Model Context Protocol) server that allows you to use your APIs directly in Claude Desktop and other MCP-compatible clients.
@@ -371,6 +368,34 @@ The following features and improvements have been added:
 ### Developer Experience
 - **UV Package Manager**: Fast Python dependency installation in Docker
 - **Consolidated Scripts**: Unified build and startup scripts
+
+## 🚢 Deployment Options
+
+### Docker Compose (Production)
+For production deployments with Docker Compose:
+```bash
+./start_docker_compose.sh --production
+```
+
+### Kubernetes with Helm
+Deploy to Kubernetes clusters:
+```bash
+helm install legacy-use ./infra/helm -f values-production.yaml
+```
+
+### Local Development with Kubernetes
+For advanced development with hot reloading:
+```bash
+# One-time setup: Create Kind cluster with local registry and KubeVirt
+./scripts/kind-setup.sh
+
+# Start Tilt development environment
+./scripts/tilt-up.sh
+
+# Access Tilt UI: http://localhost:10350
+```
+
+See [Kind + Tilt Development Guide](docs/kind-tilt-development.md) for details.
 
 ## 🤝 Contributing
 

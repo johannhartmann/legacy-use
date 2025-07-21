@@ -22,8 +22,6 @@ We welcome contributions through GitHub pull requests. This document outlines ou
 - [Vite](https://vitejs.dev/)
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [Docker](https://www.docker.com/)
-- [PostHog](https://posthog.com/)
-- [Sentry](https://sentry.io/)
 
 ### Terminology
 
@@ -57,7 +55,63 @@ We welcome contributions through GitHub pull requests. This document outlines ou
 
 ## Getting setup for development
 
+### Prerequisites
+
+Before starting development, ensure you have the following tools installed:
+
+**Core Requirements:**
+- **Docker** - All services run in containers ([Get Docker](https://www.docker.com/get-started/))
+- **Node.js 20+** - Frontend development ([nodejs.org](https://nodejs.org/))
+- **Python 3.12+** - Backend development ([python.org](https://www.python.org/))
+- **uv** - Fast Python package manager ([Install guide](https://docs.astral.sh/uv/))
+
+**For Kubernetes Development:**
+- **kubectl** - Kubernetes CLI ([Install kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl))
+- **helm** - Kubernetes package manager ([Install helm](https://helm.sh/docs/intro/install/))
+- **kind** - Kubernetes in Docker ([Install kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation))
+- **tilt** - Development environment for Kubernetes ([Install tilt](https://docs.tilt.dev/install.html))
+
+**Quick Install Commands:**
+```bash
+# macOS with Homebrew
+brew install kubectl helm kind tilt-dev/tap/tilt
+
+# Linux/WSL
+# kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# helm
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# kind
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+chmod +x ./kind && sudo mv ./kind /usr/local/bin/kind
+
+# tilt
+curl -fsSL https://github.com/tilt-dev/tilt/releases/download/v0.33.6/tilt.0.33.6.linux.x86_64.tar.gz | tar -xzv tilt && sudo mv tilt /usr/local/bin
+```
+
 Following the steps in the [README.md](./README.md) file will get you up and running with the project, but if you want to get more in depth, here are some tips:
+
+### Quick Development Setup with Makefile
+
+The project includes a comprehensive Makefile for common development tasks:
+
+```bash
+# Set up complete development environment
+make dev-setup    # Creates Kind cluster with KubeVirt
+make tilt         # Start Tilt for hot-reloading development
+
+# Code quality
+make format       # Format all Python code
+make lint         # Run linting checks
+make check        # Run all quality checks
+make test         # Run tests
+
+# See all available commands
+make help
+```
 
 ### Local development cheatsheet
 
