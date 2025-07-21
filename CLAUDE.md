@@ -45,6 +45,27 @@ pip install -e .
 python test_server.py  # Test database connection and API conversion
 ```
 
+### Kubernetes Development with Kind & Tilt
+```bash
+# Set up Kind cluster with KubeVirt and local registry
+./scripts/kind-setup.sh
+
+# Start Tilt development environment (auto-rebuilds on code changes)
+./scripts/tilt-up.sh
+
+# Stop Tilt (preserves Kind cluster and registry)
+./scripts/tilt-down.sh
+
+# Tear down Kind cluster and registry completely
+./scripts/kind-teardown.sh
+
+# Check KubeVirt status
+./scripts/check-kubevirt.sh
+
+# Build and push images to registry
+./scripts/build-and-push.sh
+```
+
 ### Code Quality Commands
 ```bash
 # Frontend linting and formatting
@@ -52,9 +73,20 @@ npm run check     # Check for issues
 npm run lint      # Lint with auto-fix
 npm run format    # Format code
 
-# Backend formatting
-uv run ruff format .
-uv run ruff check . --fix
+# Backend quality checks (Python)
+make format       # Format code with black and ruff
+make lint         # Run all linting checks
+make vulture      # Find dead code
+make check        # Run all quality checks
+make test         # Run tests
+make pre-commit   # Install and run pre-commit hooks
+
+# Individual Python tools
+uv run black .                    # Format with black
+uv run ruff check . --fix         # Lint and fix with ruff
+uv run ruff format .              # Format with ruff
+uv run vulture server/ --min-confidence=60  # Find dead code
+uv run mypy server/               # Type checking
 ```
 
 ### Testing Commands
@@ -85,17 +117,17 @@ npm run test
 - `app/` - React frontend (Material-UI, Vite)
 - `server/` - FastAPI backend with AI automation
 - `infra/docker/` - Docker configurations for all services
-- `helm/` - Kubernetes deployment charts
+- `infra/helm/` - Kubernetes deployment charts
 - `sample_prompts/` - Example automation prompts
 
 ### Key Services
 - **Management UI**: http://localhost:5173 (frontend)
 - **Backend API**: http://localhost:8088 (requires API key)
+- **MCP Server**: http://localhost:3000/mcp (Model Context Protocol server for Claude Desktop integration)
 - **Wine Target**: VNC on port 5900, noVNC on http://localhost:6080 (Windows apps via Wine, password: wine)
-- **Linux Target**: VNC on port 5901, noVNC on http://localhost:6081 (Linux desktop with GnuCash, password: password123)
+- **Linux Target**: VNC on port 5901, noVNC on http://localhost:6081/static/vnc.html (Linux desktop with GnuCash, no password)
 - **Android Target**: ADB on port 5555, VNC on port 5902, noVNC on http://localhost:6082 (Android emulator)
 - **Demo Database**: PostgreSQL on port 5432
-- **MCP Server**: Model Context Protocol server for Claude Desktop integration (see `mcp-server/`)
 
 ## Development Tips
 
@@ -135,3 +167,32 @@ LEGACY_USE_DEBUG=1              # Enable hot reloading
 - VNC connections are not encrypted by default
 - Consider VPN for production deployments
 - Telemetry can be disabled via environment variables
+
+## Kubernetes-specific Notes
+
+### Container Pool
+The container pool automatically discovers containers with the label `legacy-use.scalable=true`. Each container type is identified by:
+- Label `legacy-use.target-type` (values: `wine`, `linux`, `android`)
+- Fallback to container name pattern matching if label is missing
+
+### Debugging Container Allocation
+Check container pool status:
+```bash
+curl -H "X-API-Key: $API_KEY" http://localhost:8088/sessions/pool/status
+```
+
+Common issues:
+- Container not detected: Check if pod has `legacy-use.scalable=true` label
+- Container not available: May be already allocated to another session
+- Session stuck in "initializing": No available containers of that type
+
+### Important: Let Tilt Manage Kubernetes
+- **DO NOT** manually restart pods or deployments with kubectl
+- **DO NOT** use kubectl port-forward (Tilt manages port forwarding)
+- **DO NOT** scale deployments manually (use Tilt or the app's scaling features)
+- Tilt automatically rebuilds and redeploys when you change code
+
+## Personal Memories
+- Do not start and stop tilt on your own
+- For scaling windows machines we need VirtualMachineInstanceReplicaSet. VirtualMachine is no option.
+- DO NOT RESTART ANY KUBERNETES SERVICES WITH KUBECTL

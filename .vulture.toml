@@ -1,0 +1,41 @@
+# Vulture configuration file
+# https://github.com/jendrikseipp/vulture
+
+[tool.vulture]
+# Minimum confidence score (0-100)
+min_confidence = 60
+
+# Paths to exclude
+exclude = [
+    "migrations/",
+    "tests/",
+    "venv/",
+    ".venv/",
+    "__pycache__/",
+    "*.egg-info/",
+    "build/",
+    "dist/",
+    "node_modules/"
+]
+
+# Sort results by confidence
+sort_by_size = true
+
+# Ignore specific names that are used dynamically
+ignore_names = [
+    "_*",           # Private methods
+    "__*__",        # Magic methods
+    "Meta",         # Django/SQLAlchemy meta classes
+    "Config",       # Pydantic config classes
+]
+
+# Whitelist patterns for FastAPI
+make_whitelist = true
+ignore_decorators = [
+    "@app.route",
+    "@router.get",
+    "@router.post",
+    "@router.put",
+    "@router.delete",
+    "@router.patch",
+]

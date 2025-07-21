@@ -16,26 +16,109 @@ dependencies = [
     "gunicorn>=23.0.0",
     "httpx>=0.27.0",
     "jinja2>=3.1.6",
-    "posthog>=4.9.0",
     "psycopg2-binary>=2.9.9",
     "pydantic-settings>=2.10.1",
     "python-dotenv>=1.0.0",
     "python-multipart>=0.0.20",
     "requests>=2.31.0",
-    "sentry-sdk[fastapi]>=1.40.0",
     "sqlalchemy>=2.0.0",
     "uvicorn>=0.27.1",
     "websockets>=12.0.0",
+    "kubernetes>=28.1.0",
 ]
 
 [dependency-groups]
 dev = [
+    "black>=24.0.0",
     "ruff>=0.12.1",
-    "pre-commit>=4.2.0"
+    "vulture>=2.10",
+    "pre-commit>=4.2.0",
+    "mypy>=1.8.0",
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0"
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # Directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | migrations
+)/
+'''
+
+[tool.ruff]
+# Same line length as black
+line-length = 88
+target-version = "py312"
+
+# Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (handled by black)
+    "B008",   # do not perform function calls in argument defaults
+    "C901",   # too complex
+]
+
+# Exclude commonly ignored directories
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "migrations",
 ]
 
 [tool.ruff.format]
 quote-style = "single"
 
-[tool.ruff]
-# Add include/exclude settings here if needed in the future
+[tool.ruff.isort]
+known-first-party = ["server", "app"]
+
+[tool.vulture]
+# Minimum confidence to report unused code
+min_confidence = 60
+# Paths to exclude
+exclude = ["migrations/", "tests/", "venv/", ".venv/"]
+# Known unused code that's actually used (e.g., fixtures, imported for side effects)
+make_whitelist = true
