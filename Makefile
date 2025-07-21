@@ -10,6 +10,21 @@ help:
 	@echo "  make test          - Run tests"
 	@echo "  make pre-commit    - Run pre-commit hooks"
 	@echo "  make clean         - Remove generated files"
+	@echo ""
+	@echo "Kind/Kubernetes commands:"
+	@echo "  make kind-setup    - Set up Kind cluster with KubeVirt and local registry"
+	@echo "  make kind-teardown - Tear down Kind cluster and registry"
+	@echo "  make kind-status   - Check Kind cluster and KubeVirt status"
+	@echo ""
+	@echo "Tilt commands:"
+	@echo "  make tilt          - Start Tilt (development mode with auto-reload)"
+	@echo "  make tilt-up       - Start Tilt in background"
+	@echo "  make tilt-down     - Stop Tilt (preserves Kind cluster)"
+	@echo "  make tilt-status   - Show Tilt status"
+	@echo ""
+	@echo "Docker commands:"
+	@echo "  make build         - Build all Docker images"
+	@echo "  make build-push    - Build and push images to registry"
 
 .PHONY: install
 install:
@@ -68,3 +83,67 @@ clean:
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	find . -type f -name "*.pyo" -delete 2>/dev/null || true
 	find . -type f -name ".coverage" -delete 2>/dev/null || true
+
+# Kind/Kubernetes commands
+.PHONY: kind-setup
+kind-setup:
+	@echo "Setting up Kind cluster with KubeVirt and local registry..."
+	./scripts/kind-setup.sh
+
+.PHONY: kind-teardown
+kind-teardown:
+	@echo "Tearing down Kind cluster and registry..."
+	./scripts/kind-teardown.sh
+
+.PHONY: kind-status
+kind-status:
+	@echo "Checking Kind cluster status..."
+	@kubectl cluster-info --context kind-kind 2>/dev/null || echo "Kind cluster not running"
+	@echo ""
+	@echo "Checking KubeVirt status..."
+	@kubectl get kubevirt -n kubevirt 2>/dev/null || echo "KubeVirt not installed"
+	@echo ""
+	@echo "Checking nodes..."
+	@kubectl get nodes 2>/dev/null || true
+
+# Tilt commands
+.PHONY: tilt
+tilt:
+	@echo "Starting Tilt in foreground mode..."
+	tilt up
+
+.PHONY: tilt-up
+tilt-up:
+	@echo "Starting Tilt in background..."
+	./scripts/tilt-up.sh
+
+.PHONY: tilt-down
+tilt-down:
+	@echo "Stopping Tilt..."
+	./scripts/tilt-down.sh
+
+.PHONY: tilt-status
+tilt-status:
+	@echo "Checking Tilt status..."
+	@tilt get session 2>/dev/null || echo "Tilt not running"
+
+# Docker commands
+.PHONY: build
+build:
+	@echo "Building all Docker images..."
+	./build_docker.sh
+
+.PHONY: build-push
+build-push:
+	@echo "Building and pushing images to registry..."
+	./scripts/build-and-push.sh
+
+# Combined development commands
+.PHONY: dev-setup
+dev-setup: kind-setup
+	@echo "Development environment setup complete!"
+	@echo "Run 'make tilt' to start development"
+
+.PHONY: dev-teardown
+dev-teardown: tilt-down kind-teardown
+	@echo "Development environment torn down"

@@ -47,22 +47,30 @@ python test_server.py  # Test database connection and API conversion
 
 ### Kubernetes Development with Kind & Tilt
 ```bash
-# Set up Kind cluster with KubeVirt and local registry
+# Quick development setup
+make dev-setup    # Sets up Kind cluster with KubeVirt
+make tilt         # Start Tilt (foreground, with auto-reload)
+make dev-teardown # Tear down everything
+
+# Individual commands
+make kind-setup    # Set up Kind cluster with KubeVirt and local registry
+make kind-status   # Check Kind cluster and KubeVirt status
+make kind-teardown # Tear down Kind cluster and registry
+
+make tilt          # Start Tilt in foreground (recommended)
+make tilt-up       # Start Tilt in background
+make tilt-down     # Stop Tilt (preserves Kind cluster)
+make tilt-status   # Check Tilt status
+
+make build         # Build all Docker images
+make build-push    # Build and push images to registry
+
+# Or use scripts directly
 ./scripts/kind-setup.sh
-
-# Start Tilt development environment (auto-rebuilds on code changes)
 ./scripts/tilt-up.sh
-
-# Stop Tilt (preserves Kind cluster and registry)
 ./scripts/tilt-down.sh
-
-# Tear down Kind cluster and registry completely
 ./scripts/kind-teardown.sh
-
-# Check KubeVirt status
 ./scripts/check-kubevirt.sh
-
-# Build and push images to registry
 ./scripts/build-and-push.sh
 ```
 
