@@ -14,9 +14,11 @@ RUN git clone --branch v1.5.0 https://github.com/novnc/noVNC.git /usr/share/novn
     ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
 # Install Python dependencies for the proxy
+# Updated to ensure aiohttp is installed
 RUN pip install --no-cache-dir \
     websockify \
     aiohttp \
+    websockets \
     pyyaml
 
 # Copy configuration files
