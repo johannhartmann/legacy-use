@@ -181,3 +181,4 @@ infra/.terraform/
 # Ignore Terraform state and backup files in the infra folder
 terraform.tfstate
 terraform.tfstate.backup
+vms/
