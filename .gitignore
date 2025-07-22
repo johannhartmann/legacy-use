@@ -182,3 +182,13 @@ infra/.terraform/
 terraform.tfstate
 terraform.tfstate.backup
 vms/
+
+# Virtual machine disk images (anywhere in the repo)
+*.qcow2
+*.img
+*.iso
+*.vmdk
+*.vdi
+*.vhd
+*.vhdx
+*.raw
