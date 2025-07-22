@@ -19,7 +19,8 @@ RUN pip install --no-cache-dir \
     websockify \
     aiohttp \
     websockets \
-    pyyaml
+    pyyaml \
+    kubernetes
 
 # Copy configuration files
 COPY image/nginx.conf /etc/nginx/nginx.conf
