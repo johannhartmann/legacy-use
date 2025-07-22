@@ -35,4 +35,14 @@ rules:
   - apiGroups: ["kubevirt.io"]
     resources: ["virtualmachineinstances"]
     verbs: ["get", "list", "watch"]
+  
+  # Allow VNC access to VirtualMachineInstances (for virtvnc)
+  - apiGroups: ["subresources.kubevirt.io"]
+    resources: ["virtualmachineinstances/console", "virtualmachineinstances/vnc"]
+    verbs: ["get"]
+  
+  # Allow reading VirtualMachines for virtvnc
+  - apiGroups: ["kubevirt.io"]
+    resources: ["virtualmachines", "virtualmachineinstancepresets", "virtualmachineinstancemigrations"]
+    verbs: ["get", "list", "watch"]
 {{- end }}

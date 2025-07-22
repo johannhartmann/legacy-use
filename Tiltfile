@@ -12,7 +12,6 @@ watch_settings(ignore=[
     '*.qcow2', 
     '*.iso',
     'infra/docker/*/output/**',
-    'infra/docker/legacy-use-windows-image-builder/output/**',
     '**/*.log'
 ])
 
@@ -210,25 +209,6 @@ k8s_resource(
 
 # Windows KubeVirt resources
 if kubevirt_installed:
-    # Windows image builder as a local resource
-    local_resource(
-        'windows-image-builder',
-        cmd='docker build -t {}/legacy-use-windows-image-builder -f infra/docker/legacy-use-windows-image-builder/Dockerfile infra/docker/legacy-use-windows-image-builder && docker push {}/legacy-use-windows-image-builder'.format(local_registry, local_registry),
-        labels=['build'],
-        auto_init=False,
-        trigger_mode=TRIGGER_MODE_MANUAL
-    )
-    
-    # Helper to build and upload Windows image
-    local_resource(
-        'windows-image-upload',
-        cmd='./scripts/windows-kubevirt-setup.sh build && ./scripts/windows-kubevirt-setup.sh upload',
-        labels=['build'],
-        auto_init=False,
-        trigger_mode=TRIGGER_MODE_MANUAL,
-        resource_deps=['windows-image-builder']
-    )
-    
     # Windows VM resources - Tilt doesn't automatically track VirtualMachineInstanceReplicaSet
     # For now, we'll just use local resources to manage the Windows VM
     # The VMIRS will be deployed by Helm but not tracked by Tilt's k8s_resource
@@ -308,14 +288,9 @@ Container Targets:
 if kubevirt_installed:
     print("""
 Windows KubeVirt Target (KubeVirt detected):
-- Windows RDP: localhost:3389 (user: Admin, password: windows)
-- Windows VNC: vnc://localhost:5903
-- Windows noVNC: http://localhost:6083
-
-To set up Windows VM:
-1. Click "windows-image-builder" in Tilt UI to build the image
-2. Click "windows-image-upload" to upload to PVC
-3. The VM will start automatically""")
+- Access Windows XP VM through the Management UI at http://localhost:5173
+- VNC is proxied through the integrated noVNC proxy
+- The VM uses a pre-built Windows XP image loaded via CDI""")
 else:
     print("""
 Windows KubeVirt Target: Not available (KubeVirt not installed)
