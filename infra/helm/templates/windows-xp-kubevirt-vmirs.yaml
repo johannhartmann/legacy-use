@@ -63,24 +63,6 @@ spec:
             {{- if .Values.windowsXpKubevirt.userData }}
             {{- .Values.windowsXpKubevirt.userData | nindent 12 }}
             {{- end }}
-      dataVolumeTemplates:
-      {{- if .Values.windowsXpKubevirt.diskUrl }}
-      - metadata:
-          name: {{ include "legacy-use.fullname" . }}-windows-xp-dv
-        spec:
-          storage:
-            accessModes:
-            - ReadWriteOnce
-            resources:
-              requests:
-                storage: {{ .Values.windowsXpKubevirt.disk.size | default "32Gi" }}
-            {{- if .Values.windowsXpKubevirt.disk.storageClass }}
-            storageClassName: {{ .Values.windowsXpKubevirt.disk.storageClass }}
-            {{- end }}
-          source:
-            http:
-              url: {{ .Values.windowsXpKubevirt.diskUrl }}
-      {{- end }}
       {{- with .Values.windowsXpKubevirt.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -35,10 +35,9 @@ The Windows target consists of:
    tilt up
    ```
 
-3. Build and upload the Windows image using Tilt UI:
-   - Click "windows-image-builder" to build the image
-   - Click "windows-image-upload" to upload to PVC
-   - The VM will start automatically
+3. The Windows XP VM will start automatically:
+   - Uses pre-built Windows XP image loaded via CDI
+   - Image URL is configured in values-tilt.yaml
 
 Note: Both container targets (Wine, Linux, Android) and Windows KubeVirt VM run simultaneously
 
@@ -179,9 +178,12 @@ virtctl console legacy-use-windows-vm -n legacy-use
 - Check Service and VM network configuration
 - Ensure RDP is enabled in Windows
 
-## Building Custom Windows Images
+## Using Custom Windows Images
 
-See `infra/docker/legacy-use-windows-image-builder/README.md` for instructions on building custom Windows VM images for KubeVirt.
+To use a custom Windows image:
+1. Upload your QCOW2 image to an accessible HTTP/HTTPS server
+2. Update the `diskUrl` in your values file
+3. CDI will automatically download and import the image
 
 ## Differences from Docker Windows Target
 

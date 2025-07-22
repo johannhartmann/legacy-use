@@ -178,6 +178,13 @@ windowsXpKubevirt:
     size: 32Gi
     storageClass: standard  # Kind uses 'standard' storage class
   
+  # DataVolume template configuration
+  dataVolumeTemplate:
+    enabled: true
+    source:
+      http:
+        url: "https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=winxp.qcow2"
+  
   # VirtIO drivers
   virtioDrivers:
     image: kubevirt/virtio-container-disk:latest
