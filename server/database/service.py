@@ -179,18 +179,6 @@ class DatabaseService:
         finally:
             session.close()
 
-    def delete_session(self, session_id):
-        session = self.Session()
-        try:
-            db_session = session.query(Session).filter(Session.id == session_id).first()
-            if db_session:
-                db_session.is_archived = True
-                db_session.updated_at = datetime.now()
-                session.commit()
-                return True
-            return False
-        finally:
-            session.close()
 
     def hard_delete_session(self, session_id):
         session = self.Session()
@@ -286,29 +274,6 @@ class DatabaseService:
         finally:
             session.close()
 
-    def list_session_jobs(self, session_id, limit: int = 10, offset: int = 0):
-        session = self.Session()
-        try:
-            jobs = (
-                session.query(Job)
-                .filter(Job.session_id == session_id)
-                .order_by(Job.created_at.desc())
-                .offset(offset)
-                .limit(limit)
-                .all()
-            )
-            job_dicts = []
-            for job in jobs:
-                job_dict = self._to_dict(job)
-                # Include API definition version ID if available
-                if job.api_definition_version_id:
-                    job_dict['api_definition_version_id'] = str(
-                        job.api_definition_version_id
-                    )
-                job_dicts.append(job_dict)
-            return job_dicts
-        finally:
-            session.close()
 
     def list_jobs_by_status_and_target(
         self, target_id, statuses, limit: int = 100, offset: int = 0
@@ -368,12 +333,6 @@ class DatabaseService:
         finally:
             session.close()
 
-    def count_target_jobs(self, target_id):
-        session = self.Session()
-        try:
-            return session.query(Job).filter(Job.target_id == target_id).count()
-        finally:
-            session.close()
 
     def count_jobs(self, filters: dict = None):
         session = self.Session()
@@ -522,25 +481,6 @@ class DatabaseService:
         finally:
             session.close()
 
-    async def get_api_definition(self, api_definition_id=None, name=None):
-        """Get an API definition by ID or name."""
-        session = self.Session()
-        try:
-            if api_definition_id:
-                return (
-                    session.query(APIDefinition)
-                    .filter(APIDefinition.id == api_definition_id)
-                    .first()
-                )
-            elif name:
-                return (
-                    session.query(APIDefinition)
-                    .filter(APIDefinition.name == name)
-                    .first()
-                )
-            return None
-        finally:
-            session.close()
 
     async def create_api_definition(self, name, description):
         """Create a new API definition."""
@@ -723,31 +663,6 @@ class DatabaseService:
         finally:
             session.close()
 
-    async def update_api_definition_version(self, version_id, **kwargs):
-        """Update an API definition version."""
-        session = self.Session()
-        try:
-            api_definition_version = await self.get_api_definition_version(version_id)
-            if not api_definition_version:
-                return None
-
-            # If activating this version, deactivate all others
-            if kwargs.get('is_active', False) and not api_definition_version.is_active:
-                session.query(APIDefinitionVersion).filter(
-                    APIDefinitionVersion.api_definition_id
-                    == api_definition_version.api_definition_id,
-                    APIDefinitionVersion.is_active,
-                ).update({APIDefinitionVersion.is_active: False})
-
-            for key, value in kwargs.items():
-                if hasattr(api_definition_version, key):
-                    setattr(api_definition_version, key, value)
-
-            api_definition_version.updated_at = datetime.now()
-            session.commit()
-            return self._to_dict(api_definition_version)
-        finally:
-            session.close()
 
     async def get_api_definition_by_name(self, name):
         """Get an API definition by name."""
@@ -760,17 +675,6 @@ class DatabaseService:
         finally:
             session.close()
 
-    async def get_active_api_definition_version_by_name(self, name):
-        """Get the active version of an API definition by name."""
-        session = self.Session()
-        try:
-            api_definition = await self.get_api_definition_by_name(name)
-            if not api_definition:
-                return None
-
-            return await self.get_active_api_definition_version(api_definition.id)
-        finally:
-            session.close()
 
     async def get_next_version_number(self, api_definition_id):
         """Get the next version number for an API definition."""
@@ -806,28 +710,6 @@ class DatabaseService:
         result = {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
         return result
 
-    def get_session_job(self, session_id, job_id):
-        session = self.Session()
-        try:
-            job = (
-                session.query(Job)
-                .filter(Job.session_id == session_id, Job.id == job_id)
-                .first()
-            )
-            if not job:
-                return None
-
-            job_dict = self._to_dict(job)
-
-            # Include API definition version ID if available
-            if job.api_definition_version_id:
-                job_dict['api_definition_version_id'] = str(
-                    job.api_definition_version_id
-                )
-
-            return job_dict
-        finally:
-            session.close()
 
     # --- Job Message Methods (New) ---
     def get_next_message_sequence(self, job_id: UUID) -> int:
