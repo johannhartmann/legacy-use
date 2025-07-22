@@ -1,0 +1,78 @@
+{{- if .Values.windows10Kubevirt.enabled -}}
+apiVersion: kubevirt.io/v1
+kind: VirtualMachineInstanceReplicaSet
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-windows-10-vmirs
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: windows-10-kubevirt
+spec:
+  replicas: {{ .Values.windows10Kubevirt.replicas }}
+  selector:
+    matchLabels:
+      {{- include "legacy-use.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: windows-10-kubevirt
+  template:
+    metadata:
+      labels:
+        {{- include "legacy-use.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: windows-10-kubevirt
+        {{- with .Values.windows10Kubevirt.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      domain:
+        cpu:
+          cores: {{ .Values.windows10Kubevirt.cpu.cores }}
+        memory:
+          guest: {{ .Values.windows10Kubevirt.memory }}
+        devices:
+          disks:
+          - name: windows-disk
+            disk:
+              bus: virtio
+          - name: cloudinit
+            disk:
+              bus: sata
+          interfaces:
+          - name: default
+            masquerade: {}
+            model: e1000e  # Better network driver for Windows 10
+        resources:
+          requests:
+            memory: {{ .Values.windows10Kubevirt.memory }}
+            cpu: {{ .Values.windows10Kubevirt.cpu.cores }}
+      networks:
+      - name: default
+        pod: {}
+      volumes:
+      - name: windows-disk
+        {{- if .Values.windows10Kubevirt.diskUrl }}
+        dataVolume:
+          name: {{ include "legacy-use.fullname" . }}-windows-10-dv
+        {{- else }}
+        containerDisk:
+          image: {{ .Values.windows10Kubevirt.containerDiskImage }}
+          imagePullPolicy: Always
+        {{- end }}
+      - name: cloudinit
+        cloudInitNoCloud:
+          userData: |
+            #cloud-config
+            hostname: {{ .Values.windows10Kubevirt.hostname }}
+            {{- if .Values.windows10Kubevirt.userData }}
+            {{- .Values.windows10Kubevirt.userData | nindent 12 }}
+            {{- end }}
+      {{- with .Values.windows10Kubevirt.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.windows10Kubevirt.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.windows10Kubevirt.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

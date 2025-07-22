@@ -135,7 +135,7 @@ def launch_container(
             container_name,  # Name container based on session ID
         ]
 
-        # Check if we're running inside a docker-compose setup
+        # Check if we're running inside a Docker setup
         # by checking if we're connected to a custom network
         # and if so, extend the docker_cmd with the network name
         import subprocess

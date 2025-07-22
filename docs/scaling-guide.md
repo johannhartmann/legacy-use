@@ -4,18 +4,19 @@ This guide explains how the container pool feature works to manage sessions acro
 
 ## Overview
 
-Legacy-Use uses a container pool architecture for both development (Docker Compose) and production (Kubernetes). Sessions are allocated to existing containers rather than creating new containers for each session. This provides:
+Legacy-Use uses a container pool architecture for Kubernetes deployments. Sessions are allocated to existing containers rather than creating new containers for each session. This provides:
 
 - **Better Performance**: No container startup overhead - sessions start instantly
 - **Resource Efficiency**: Containers are reused across sessions
-- **Consistent Architecture**: Same approach for both development and production
+- **Consistent Architecture**: Same approach across all deployments
 - **Simplified Scaling**: Add more containers to handle more concurrent sessions
 
 ## Quick Start
 
 1. **Start Services**:
 ```bash
-./start_docker_compose.sh
+./scripts/kind-setup.sh  # One-time setup
+./scripts/tilt-up.sh     # Start services
 ```
 
 2. **Create Sessions**:
@@ -39,7 +40,7 @@ When container pool mode is enabled:
 
 ### Port Management
 
-With the current docker-compose setup, containers use fixed ports:
+Containers are accessed through the following ports:
 
 - Wine VNC: 5900
 - Wine noVNC: 6080
@@ -83,17 +84,19 @@ curl -H "X-API-Key: $API_KEY" http://localhost:8088/containers?target_type=wine&
 
 ### View Running Containers
 ```bash
-docker-compose ps
+kubectl get pods -l app.kubernetes.io/name=legacy-use
 ```
 
 ### Restart a Container
 ```bash
-docker-compose restart wine-target
+# Note: Let Tilt handle restarts automatically
+# Manual restart if needed:
+kubectl delete pod <pod-name>
 ```
 
 ### View Container Logs
 ```bash
-docker-compose logs -f wine-target
+kubectl logs -f -l legacy-use.target-type=wine
 ```
 
 ## Monitoring
@@ -101,17 +104,17 @@ docker-compose logs -f wine-target
 ### Container Logs
 View logs for all Wine targets:
 ```bash
-docker-compose logs -f wine-target
+kubectl logs -f -l legacy-use.target-type=wine
 ```
 
-View logs for a specific instance:
+View logs for a specific pod:
 ```bash
-docker logs -f legacy-use_wine-target_3
+kubectl logs -f <pod-name>
 ```
 
 ### Resource Usage
 ```bash
-docker stats $(docker-compose ps -q wine-target)
+kubectl top pods -l app.kubernetes.io/name=legacy-use
 ```
 
 ## Best Practices
@@ -128,8 +131,8 @@ docker stats $(docker-compose ps -q wine-target)
 If sessions fail with "No available containers":
 
 1. Check pool status: `curl -H "X-API-Key: $API_KEY" http://localhost:8088/containers/status`
-2. Check if containers are running: `docker-compose ps`
-3. Restart containers if needed: `docker-compose restart`
+2. Check if containers are running: `kubectl get pods -l app.kubernetes.io/name=legacy-use`
+3. Check Tilt UI for any issues: http://localhost:10350
 4. Check for existing sessions using the container: `curl -H "X-API-Key: $API_KEY" http://localhost:8088/sessions/`
 
 ### Port Conflicts
@@ -137,8 +140,8 @@ If sessions fail with "No available containers":
 If you see port binding errors:
 
 1. Ensure port ranges don't overlap with other services
-2. Check for stale containers: `docker ps -a`
-3. Clean up if needed: `docker-compose down`
+2. Check for conflicting services: `kubectl get svc`
+3. Tilt handles port forwarding automatically
 
 ### Container Not Released
 
@@ -149,20 +152,16 @@ If containers remain allocated after session deletion:
 
 ## Scaling Containers
 
-### Docker Compose (Development)
+### Kubernetes
 
-With the current setup, you have one container per target type. To add more containers, you would need to:
-
-1. Modify `docker-compose.yml` to remove fixed container names
-2. Use port ranges instead of fixed ports
-3. Run with `--scale` flag: `docker-compose up -d --scale wine-target=3`
-
-### Kubernetes (Production)
-
-In Kubernetes, scaling is built-in:
+Scaling is built-in with Kubernetes:
 
 ```bash
+# Scale a specific target type
 kubectl scale deployment wine-target --replicas=3
+
+# Or use Tilt's scaling features
+# Edit the replica count in Tiltfile and Tilt will handle the update
 ```
 
 ## Configuration
@@ -185,6 +184,6 @@ The container pool is always active and provides:
 
 ## Limitations
 
-With the current docker-compose setup:
-- Only one instance of each target type (Wine, Linux, Android) can run
-- To support multiple instances, you would need to modify docker-compose.yml to remove fixed container names and use port ranges
+- Container pool requires proper labeling of containers
+- Each container can only handle one session at a time
+- Scaling requires sufficient cluster resources

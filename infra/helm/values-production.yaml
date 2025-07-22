@@ -147,22 +147,43 @@ androidTarget:
       cpu: 4
       memory: 4Gi
 
-# Windows target for production (if needed)
-windowsTarget:
-  enabled: false
-  image:
-    repository: ghcr.io/your-org/legacy-use-windows-target
-    tag: latest
-    pullPolicy: Always
-  resources:
-    limits:
-      cpu: 8
-      memory: 16Gi
-    requests:
-      cpu: 4
-      memory: 8Gi
-  nodeSelector:
-    node-type: kvm-enabled
+# Windows XP KubeVirt VM for production (requires KubeVirt in cluster)
+windowsXpKubevirt:
+  enabled: false  # Set to true if you have KubeVirt and need Windows XP support
+  replicas: 1
+  
+  # Production-ready resource allocation
+  cpu:
+    cores: 4
+  memory: "8Gi"
+  
+  # Use a stable Windows XP image URL or containerDisk image
+  diskUrl: "https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=winxp.qcow2"
+  # containerDiskImage: ""  # Leave empty to use diskUrl
+  
+  persistence:
+    enabled: true
+    size: "100Gi"
+    storageClass: "fast-ssd"  # Use your production storage class
+
+# Windows 10 KubeVirt VM for production (requires KubeVirt in cluster)
+windows10Kubevirt:
+  enabled: false  # Set to true if you have KubeVirt and need Windows 10 support
+  replicas: 1
+  
+  # Production-ready resource allocation
+  cpu:
+    cores: 4
+  memory: "8Gi"
+  
+  # Use a stable Windows 10 image URL or containerDisk image
+  diskUrl: "https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=win10.qcow2"
+  # containerDiskImage: ""  # Leave empty to use diskUrl
+  
+  persistence:
+    enabled: true
+    size: "120Gi"
+    storageClass: "fast-ssd"  # Use your production storage class
 
 # Pod disruption budget for production
 podDisruptionBudget:

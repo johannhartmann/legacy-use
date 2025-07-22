@@ -370,13 +370,13 @@ windowsXpKubevirt:
     legacy-use.scalable: "true"
   
   # Disk URL for CDI to download (if provided, will use DataVolume instead of containerDisk)
-  diskUrl: ""
+  diskUrl: "https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=winxp.qcow2"
   
   # Disk configuration
   # Option 1: Use ephemeral disk (creates new disk for each VM instance)
   ephemeralDisk: false
   # Option 2: Use containerDisk (recommended for scaling)
-  containerDiskImage: "quay.io/containerdisks/fedora:latest"  # TODO: Replace with actual Windows image
+  containerDiskImage: ""  # Leave empty to use diskUrl instead
   
   # Persistence configuration (for ephemeral disk template)
   persistence:
@@ -407,6 +407,74 @@ windowsXpKubevirt:
     vncPort: 5900
   
   # Cloud-init user data (optional)
+  userData: |
+    # Add any cloud-init configuration here
+    # Note: Windows requires cloudbase-init
+  
+  # Node selector for VMs
+  nodeSelector: {}
+    # kubernetes.io/hostname: node-with-kubevirt
+  
+  # Tolerations for VMs
+  tolerations: []
+  
+  # Affinity rules
+  affinity: {}
+
+# Windows 10 KubeVirt VM Configuration (Requires KubeVirt in cluster)
+windows10Kubevirt:
+  enabled: false
+  replicas: 1  # Number of Windows 10 VM instances
+  
+  # VM configuration
+  hostname: "legacy-win10"
+  cpu:
+    cores: 4
+  memory: "8Gi"
+  
+  # Labels for the VMs
+  labels:
+    legacy-use.target-type: "windows-10-vm"
+    legacy-use.scalable: "true"
+  
+  # Disk URL for CDI to download (if provided, will use DataVolume instead of containerDisk)
+  diskUrl: "https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=win10.qcow2"
+  
+  # Disk configuration
+  # Option 1: Use ephemeral disk (creates new disk for each VM instance)
+  ephemeralDisk: false
+  # Option 2: Use containerDisk (recommended for scaling)
+  containerDiskImage: ""  # Leave empty to use diskUrl instead
+  
+  # Persistence configuration (for ephemeral disk template)
+  persistence:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: "120Gi"  # Windows 10 needs more space than XP
+    storageClass: ""
+  
+  # DataVolume for Windows image (CDI) - used with ephemeral disk
+  dataVolumeTemplate:
+    enabled: false  # Enable if you want to import Windows image
+    source:
+      # Option 1: HTTP source
+      http:
+        url: ""  # URL to Windows ISO or qcow2 image
+      # Option 2: Registry source
+      # registry:
+      #   url: "docker://quay.io/kubevirt/windows:latest"
+      # Option 3: PVC source
+      # pvc:
+      #   name: "windows-10-golden-image"
+      #   namespace: "default"
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    rdpPort: 3389
+    vncPort: 5900
+  
+  # User data for cloud-init (if supported by the image)
   userData: |
     # Add any cloud-init configuration here
     # Note: Windows requires cloudbase-init

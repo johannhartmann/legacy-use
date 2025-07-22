@@ -24,9 +24,6 @@ docker build -t legacy-use-linux-machine -f infra/docker/linux-machine/Dockerfil
 
 ### Development Commands
 ```bash
-# Start all services with hot reloading
-LEGACY_USE_DEBUG=1 ./start_docker_compose.sh
-
 # Frontend development (port 5173)
 cd app && npm run dev
 
@@ -160,7 +157,7 @@ LEGACY_USE_DEBUG=1              # Enable hot reloading
 
 ### Database
 - Default: SQLite in development
-- Production: PostgreSQL via Docker Compose
+- Production: PostgreSQL via Kubernetes
 - Migrations: Alembic in `server/migrations/`
 
 ## Common Issues

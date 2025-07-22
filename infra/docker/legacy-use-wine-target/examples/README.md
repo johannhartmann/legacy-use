@@ -6,7 +6,9 @@ This directory contains example scripts for installing and running Windows appli
 
 1. Start the Wine container:
 ```bash
-docker-compose up -d
+# With Kubernetes/Tilt
+./scripts/kind-setup.sh  # One-time setup  
+./scripts/tilt-up.sh     # Start services
 ```
 
 2. Copy installation scripts to the container:

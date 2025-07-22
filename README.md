@@ -82,16 +82,10 @@ cp .env.template .env
 # 3. Generate a secure API key and add it to your .env file  - (details below)
 uv run python generate_api_key.py
 
-# 4. Build and start all services
+# 4. Build Docker images
 ./build_docker.sh
 
-# Option A: Docker Compose (recommended - includes all target containers)
-./start_docker_compose.sh  # Runs in debug mode by default
-
-# Option B: Production mode
-./start_docker_compose.sh --production
-
-# Option C: Kubernetes with Tilt (advanced - hot reload development)
+# 5. Start services with Kubernetes/Tilt (includes all target containers)
 ./scripts/kind-setup.sh  # One-time setup
 ./scripts/tilt-up.sh     # Start development environment
 ```
@@ -118,7 +112,7 @@ Once the setup completes:
 2. **API Documentation**: Visit <http://localhost:8088/redoc> - to explore the REST API
 🎉 **You're all set!** The complete setup usually takes 2-5 minutes depending on your internet connection.
 
-**🚀 Why Docker Compose is Recommended:**
+**🚀 Why Kubernetes/Tilt is Recommended:**
 - All target containers start automatically (Wine, Android, Linux)
 - Services networked together with DNS resolution
 - Hot reloading enabled by default for development
@@ -137,9 +131,7 @@ Legacy-use includes several pre-configured target containers:
 For lightweight Windows application automation:
 
 ```bash
-# Integrated with Docker Compose (recommended)
-./start_docker_compose.sh
-# Wine container starts automatically
+# Wine container starts automatically with Tilt
 
 # Access via web browser
 open http://localhost:6080/vnc.html
@@ -196,7 +188,7 @@ open http://localhost:6081/vnc.html
 | Linux | Linux desktop apps | ~1GB RAM | 20 seconds |
 | Windows VM | Full Windows | ~8GB RAM | 10+ minutes |
 
-**Note**: All targets are pre-configured in the demo database and will appear automatically when using Docker Compose.
+**Note**: All targets are pre-configured in the demo database and will appear automatically when using Kubernetes/Tilt.
 
 ### Troubleshooting
 
@@ -352,7 +344,6 @@ The following features and improvements have been added:
 ### Infrastructure & Deployment
 - **Kubernetes/Helm Support**: Complete Helm charts for production deployment
 - **GitHub Actions CI/CD**: Automated Docker image builds and pushes
-- **Docker Compose v2**: Updated to modern compose syntax
 - **Service Account Templates**: Proper RBAC for Kubernetes deployments
 
 ### MCP Server Integration
@@ -371,12 +362,6 @@ The following features and improvements have been added:
 
 ## 🚢 Deployment Options
 
-### Docker Compose (Production)
-For production deployments with Docker Compose:
-```bash
-./start_docker_compose.sh --production
-```
-
 ### Kubernetes with Helm
 Deploy to Kubernetes clusters:
 ```bash
@@ -384,7 +369,7 @@ helm install legacy-use ./infra/helm -f values-production.yaml
 ```
 
 ### Local Development with Kubernetes
-For advanced development with hot reloading:
+For development with hot reloading:
 ```bash
 # One-time setup: Create Kind cluster with local registry and KubeVirt
 ./scripts/kind-setup.sh

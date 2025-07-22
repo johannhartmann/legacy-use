@@ -105,6 +105,6 @@ androidTarget:
       cpu: 500m
       memory: 512Mi
 
-# Disable Windows target by default (requires KVM)
-windowsTarget:
+# Windows XP KubeVirt VM disabled by default (requires KubeVirt in cluster)
+windowsXpKubevirt:
   enabled: false

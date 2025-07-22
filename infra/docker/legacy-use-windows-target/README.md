@@ -59,7 +59,9 @@ docker build -t legacy-use-windows-target .
 ### 2. Start Windows Container
 
 ```bash
-docker-compose up -d windows-target
+# With Kubernetes/Tilt
+./scripts/kind-setup.sh  # One-time setup
+./scripts/tilt-up.sh     # Start all services including Windows target
 ```
 
 This will:

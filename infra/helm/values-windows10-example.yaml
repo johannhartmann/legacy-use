@@ -1,19 +1,19 @@
-# Example values for deploying Legacy Use with Windows XP KubeVirt VM
-# Usage: helm install legacy-use ./infra/helm -f values-production.yaml -f values-windows-example.yaml
+# Example values for deploying Legacy Use with Windows 10 KubeVirt VM
+# Usage: helm install legacy-use ./infra/helm -f values-production.yaml -f values-windows10-example.yaml
 
-# Enable Windows XP KubeVirt VM (requires KubeVirt in cluster)
-windowsXpKubevirt:
+# Enable Windows 10 KubeVirt VM (requires KubeVirt in cluster)
+windows10Kubevirt:
   enabled: true
-  replicas: 1  # Number of Windows XP VM instances
+  replicas: 1  # Number of Windows 10 VM instances
   
   # VM configuration
-  hostname: "legacy-winxp"
+  hostname: "legacy-win10"
   cpu:
-    cores: 2
-  memory: "4Gi"
+    cores: 4
+  memory: "8Gi"
   
   # Disk configuration - using CDI with HTTP source
-  diskUrl: "https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=winxp.qcow2"
+  diskUrl: "https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=win10.qcow2"
   
   # Or use containerDisk (if you have a containerized Windows image)
   # containerDiskImage: ""  # Leave empty to use diskUrl
@@ -22,7 +22,7 @@ windowsXpKubevirt:
   persistence:
     enabled: true
     accessMode: ReadWriteOnce
-    size: "40Gi"
+    size: "120Gi"  # Windows 10 requires more space
     storageClass: ""  # Leave empty for default storage class
   
   # Service configuration
@@ -30,6 +30,10 @@ windowsXpKubevirt:
     type: ClusterIP  # Change to LoadBalancer or NodePort if external access needed
     rdpPort: 3389
     vncPort: 5900
+
+# Enable both Windows versions simultaneously if needed
+windowsXpKubevirt:
+  enabled: false  # Set to true to also deploy Windows XP
 
 # Optionally expose Windows services via ingress
 # Note: Windows VMs are typically accessed through the Legacy Use management UI

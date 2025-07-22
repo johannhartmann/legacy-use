@@ -112,20 +112,37 @@ The following table lists the main configurable parameters:
 | `androidTarget.persistence.androidSize` | Android data volume size | `20Gi` |
 | `androidTarget.persistence.appsSize` | Apps volume size | `5Gi` |
 
-#### Windows KubeVirt VM (Requires KubeVirt)
+#### Windows XP KubeVirt VM (Requires KubeVirt)
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `windowsKubevirt.enabled` | Enable Windows KubeVirt VMs | `false` |
-| `windowsKubevirt.replicas` | Number of VM instances | `1` |
-| `windowsKubevirt.hostname` | VM hostname prefix | `legacy-win` |
-| `windowsKubevirt.cpu.cores` | CPU cores per VM | `4` |
-| `windowsKubevirt.memory` | Memory per VM | `8Gi` |
-| `windowsKubevirt.containerDiskImage` | Windows container disk image | `quay.io/kubevirt/windows11:latest` |
-| `windowsKubevirt.ephemeralDisk` | Use ephemeral disk instead | `false` |
-| `windowsKubevirt.persistence.size` | Disk size (ephemeral mode) | `100Gi` |
-| `windowsKubevirt.service.rdpPort` | RDP service port | `3389` |
-| `windowsKubevirt.service.vncPort` | VNC service port | `5900` |
+| `windowsXpKubevirt.enabled` | Enable Windows XP KubeVirt VMs | `false` |
+| `windowsXpKubevirt.replicas` | Number of VM instances | `1` |
+| `windowsXpKubevirt.hostname` | VM hostname | `legacy-winxp` |
+| `windowsXpKubevirt.cpu.cores` | CPU cores per VM | `4` |
+| `windowsXpKubevirt.memory` | Memory per VM | `8Gi` |
+| `windowsXpKubevirt.diskUrl` | URL for Windows XP image (CDI) | `https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=winxp.qcow2` |
+| `windowsXpKubevirt.containerDiskImage` | Windows XP container disk image | `""` |
+| `windowsXpKubevirt.ephemeralDisk` | Use ephemeral disk | `false` |
+| `windowsXpKubevirt.persistence.size` | Disk size | `100Gi` |
+| `windowsXpKubevirt.service.rdpPort` | RDP service port | `3389` |
+| `windowsXpKubevirt.service.vncPort` | VNC service port | `5900` |
+
+#### Windows 10 KubeVirt VM (Requires KubeVirt)
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `windows10Kubevirt.enabled` | Enable Windows 10 KubeVirt VMs | `false` |
+| `windows10Kubevirt.replicas` | Number of VM instances | `1` |
+| `windows10Kubevirt.hostname` | VM hostname | `legacy-win10` |
+| `windows10Kubevirt.cpu.cores` | CPU cores per VM | `4` |
+| `windows10Kubevirt.memory` | Memory per VM | `8Gi` |
+| `windows10Kubevirt.diskUrl` | URL for Windows 10 image (CDI) | `https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=win10.qcow2` |
+| `windows10Kubevirt.containerDiskImage` | Windows 10 container disk image | `""` |
+| `windows10Kubevirt.ephemeralDisk` | Use ephemeral disk | `false` |
+| `windows10Kubevirt.persistence.size` | Disk size | `120Gi` |
+| `windows10Kubevirt.service.rdpPort` | RDP service port | `3389` |
+| `windows10Kubevirt.service.vncPort` | VNC service port | `5900` |
 
 ### Ingress Configuration
 
@@ -276,28 +293,47 @@ helm install legacy-use ./infra/helm -f values-dev.yaml
 
 ### Windows VM with KubeVirt
 
-To deploy a Windows VM using KubeVirt instead of Docker:
+To deploy Windows XP VM using KubeVirt:
 
 ```bash
-# Option 1: Use pre-built Windows image
+# Option 1: Use pre-built Windows XP image with CDI (default)
 helm install legacy-use ./infra/helm \
-  --set windowsKubevirt.enabled=true \
-  --set windowsKubevirt.dataVolumeTemplate.enabled=true \
-  --set windowsKubevirt.dataVolumeTemplate.source.http.url="http://example.com/windows.qcow2"
+  --set windowsXpKubevirt.enabled=true
+# Uses default diskUrl: https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=winxp.qcow2
 
-# Option 2: Use existing PVC with Windows image
+# Option 2: Use container disk image
 helm install legacy-use ./infra/helm \
-  --set windowsKubevirt.enabled=true \
-  --set windowsKubevirt.dataVolumeTemplate.enabled=true \
-  --set windowsKubevirt.dataVolumeTemplate.source.pvc.name="windows-golden-image" \
-  --set windowsKubevirt.dataVolumeTemplate.source.pvc.namespace="default"
+  --set windowsXpKubevirt.enabled=true \
+  --set windowsXpKubevirt.containerDiskImage="your-registry/windows-xp:latest"
 
-# Access Windows VMs
-kubectl get vmirs  # List VirtualMachineInstanceReplicaSets
-kubectl get vmi    # List Virtual Machine Instances
+# Access Windows XP VMs
+kubectl get vmirs -l legacy-use.target-type=windows-xp-vm  # List Windows XP VMs
+kubectl get vmi -l legacy-use.target-type=windows-xp-vm    # List VM Instances
+```
+
+To deploy Windows 10 VM using KubeVirt:
+
+```bash
+# Option 1: Use pre-built Windows 10 image with CDI (default)
+helm install legacy-use ./infra/helm \
+  --set windows10Kubevirt.enabled=true
+# Uses default diskUrl: https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=win10.qcow2
+
+# Option 2: Deploy both Windows XP and Windows 10
+helm install legacy-use ./infra/helm \
+  --set windowsXpKubevirt.enabled=true \
+  --set windows10Kubevirt.enabled=true
+
+# Access Windows 10 VMs
+kubectl get vmirs -l legacy-use.target-type=windows-10-vm  # List Windows 10 VMs
+kubectl get vmi -l legacy-use.target-type=windows-10-vm    # List VM Instances
+
+# Option 3: Use custom values file
+helm install legacy-use ./infra/helm -f values-windows10-example.yaml
 
 # Scale Windows VMs
-kubectl scale vmirs legacy-use-windows-vmirs --replicas=3
+kubectl scale vmirs legacy-use-windows-xp-vmirs --replicas=3
+kubectl scale vmirs legacy-use-windows-10-vmirs --replicas=2
 
 # Access specific VM instance
 kubectl virt console <vmi-name>  # Console access

@@ -12,7 +12,7 @@ This guide explains how to configure Claude Desktop to use the Legacy-Use MCP se
 
 ### 1. HTTP Streaming Transport (Recommended)
 
-The MCP server uses **HTTP streaming transport** and runs on port 3000 when deployed with Docker. 
+The MCP server uses **HTTP streaming transport** and runs on port 3000 when deployed with Kubernetes. 
 
 **Connection URL**: `http://localhost:3000/mcp`
 
@@ -84,7 +84,7 @@ Generate an API key for the Legacy-Use backend:
 
 ```bash
 cd /path/to/legacy-use
-docker-compose exec legacy-use-mgmt uv run python generate_api_key.py
+uv run python generate_api_key.py
 ```
 
 Replace `your-api-key-here` in the configuration with the generated key.

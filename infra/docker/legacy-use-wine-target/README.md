@@ -31,7 +31,12 @@ Unlike the Windows VM approach (dockur/windows), this solution:
 ### 1. Build and Start
 
 ```bash
-docker-compose up -d
+# Build the image
+docker build -t legacy-use-wine-target -f infra/docker/legacy-use-wine-target/Dockerfile .
+
+# Start with Kubernetes/Tilt
+./scripts/kind-setup.sh  # One-time setup
+./scripts/tilt-up.sh     # Start services
 ```
 
 ### 2. Access Methods

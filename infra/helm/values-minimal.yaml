@@ -24,7 +24,8 @@ linuxTarget:
 androidTarget:
   enabled: false
 
-windowsTarget:
+# Windows XP KubeVirt VM disabled
+windowsXpKubevirt:
   enabled: false
 
 # Simple ingress

@@ -140,7 +140,7 @@ async def create_session(
         'HEIGHT': str(target.get('height', 768)),
     }
 
-    # Always use container pool for scaling (both docker-compose and k8s)
+    # Always use container pool for scaling
     use_container_pool = True
     
     if use_container_pool:
@@ -304,7 +304,7 @@ async def delete_session(session_id: UUID, request: Request):
         },
     )
 
-    # Always use container pool for scaling (both docker-compose and k8s)
+    # Always use container pool for scaling
     use_container_pool = True
     
     if use_container_pool:
@@ -332,7 +332,7 @@ async def hard_delete_session(session_id: UUID, request: Request):
     if not session:
         raise HTTPException(status_code=404, detail='Session not found')
 
-    # Always use container pool for scaling (both docker-compose and k8s)
+    # Always use container pool for scaling
     use_container_pool = True
     
     if use_container_pool:

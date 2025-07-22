@@ -1,7 +1,7 @@
 """
 Docker implementation of container orchestration.
 
-This module implements container orchestration using Docker and docker-compose.
+This module implements container orchestration using Docker.
 """
 
 import asyncio
@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 class DockerOrchestrator(ContainerOrchestrator):
-    """Docker/docker-compose implementation of container orchestration."""
+    """Docker implementation of container orchestration."""
     
-    # Mapping from target types to docker-compose service names
+    # Mapping from target types to Docker service names
     SERVICE_MAPPING = {
         'linux': 'linux-machine',
         'wine': 'wine-target',
@@ -114,10 +114,10 @@ class DockerOrchestrator(ContainerOrchestrator):
         return None
     
     async def scale_service(self, service_name: str, replicas: int) -> bool:
-        """Scale a docker-compose service to the specified number of replicas."""
+        """Scale a Docker service to the specified number of replicas."""
         try:
             cmd = [
-                'docker-compose',
+                'docker',
                 '--project-name', 'legacy-use',
                 'up', '-d',
                 '--scale', f'{service_name}={replicas}',
@@ -162,7 +162,7 @@ class DockerOrchestrator(ContainerOrchestrator):
             return False
     
     def get_service_name_for_target(self, target_type: str) -> str:
-        """Get the docker-compose service name for a given target type."""
+        """Get the Docker service name for a given target type."""
         return self.SERVICE_MAPPING.get(target_type, target_type)
     
     def get_container_url(self, container_info: ContainerInfo, port: int = 8088) -> str:

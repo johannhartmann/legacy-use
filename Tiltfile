@@ -145,6 +145,7 @@ k8s_yaml(helm(
     values=values_files,
     set=[
         'windowsXpKubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
+        'windows10Kubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
     ]
 ))
 
@@ -222,10 +223,28 @@ if kubevirt_installed:
         trigger_mode=TRIGGER_MODE_MANUAL
     )
     
-    # Local resource to manually create port forwards for Windows VM
+    # Local resource to manually create port forwards for Windows XP VM
     local_resource(
-        'windows-vm-ports',
-        serve_cmd='kubectl port-forward -n legacy-use svc/legacy-use-windows-kubevirt 3389:3389 5903:5900',
+        'windows-xp-vm-ports',
+        serve_cmd='kubectl port-forward -n legacy-use svc/legacy-use-windows-xp-kubevirt 3389:3389 5903:5900',
+        labels=['targets'],
+        auto_init=False,
+        trigger_mode=TRIGGER_MODE_MANUAL
+    )
+    
+    # Local resource to check Windows 10 VM status
+    local_resource(
+        'windows-10-vm-status',
+        cmd='kubectl get vmirs,vmi,pods,pvc -n legacy-use | grep windows-10 || echo "No Windows 10 VM resources found"',
+        labels=['targets'],
+        auto_init=False,
+        trigger_mode=TRIGGER_MODE_MANUAL
+    )
+    
+    # Local resource to manually create port forwards for Windows 10 VM
+    local_resource(
+        'windows-10-vm-ports',
+        serve_cmd='kubectl port-forward -n legacy-use svc/legacy-use-windows-10-kubevirt 3390:3389 5904:5900',
         labels=['targets'],
         auto_init=False,
         trigger_mode=TRIGGER_MODE_MANUAL
@@ -287,13 +306,17 @@ Container Targets:
 
 if kubevirt_installed:
     print("""
-Windows KubeVirt Target (KubeVirt detected):
-- Access Windows XP VM through the Management UI at http://localhost:5173
-- VNC is proxied through the integrated noVNC proxy
-- The VM uses a pre-built Windows XP image loaded via CDI""")
+Windows KubeVirt Targets (KubeVirt detected):
+- Windows XP VM: Access through the Management UI at http://localhost:5173
+  - Manual port forwarding: Click 'windows-xp-vm-ports' in Tilt UI
+  - RDP: localhost:3389, VNC: localhost:5903
+- Windows 10 VM: Access through the Management UI at http://localhost:5173
+  - Manual port forwarding: Click 'windows-10-vm-ports' in Tilt UI
+  - RDP: localhost:3390, VNC: localhost:5904
+- Both VMs use pre-built images loaded via CDI from Mayflower intranet""")
 else:
     print("""
-Windows KubeVirt Target: Not available (KubeVirt not installed)
+Windows KubeVirt Targets: Not available (KubeVirt not installed)
 To enable: Install KubeVirt in your cluster""")
 
 print("""
