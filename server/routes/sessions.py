@@ -160,9 +160,12 @@ async def create_session(
             vnc_port = container_info.ports.get('5900', '5900')  # Default to 5900 if not found
             novnc_port = container_info.ports.get('6080', '') or container_info.ports.get('80', '')
             
+            # Check if this is a KubeVirt VM (has vmi_name in ports)
+            vmi_name = container_info.ports.get('vmi_name')
+            
             # In Kubernetes, ports are not mapped - use internal ports directly
             if settings.CONTAINER_ORCHESTRATOR.lower() == 'kubernetes':
-                # VNC always runs on 5900 inside containers
+                # Regular containers
                 vnc_port = '5900'
                 # Linux target uses nginx on port 80
                 if pool_target_type == 'linux':
@@ -496,7 +499,8 @@ async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
     # Get container details
     container_ip = session.get('container_ip')
     vnc_port = session.get('vnc_port', '5900')  # Default VNC port
-    logger.info(f'[VNC-WS] Session details: container_ip={container_ip}, vnc_port={vnc_port}')
+    container_id = session.get('container_id')
+    logger.info(f'[VNC-WS] Session details: container_ip={container_ip}, vnc_port={vnc_port}, container_id={container_id}')
     
     # Connect to shared noVNC proxy WebSocket with target information in headers
     novnc_proxy_host = os.getenv('NOVNC_PROXY_HOST', 'novnc-proxy')
@@ -548,6 +552,11 @@ async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
             'X-Target-Host': container_ip,
             'X-Target-Port': vnc_port
         }
+        
+        # If this is a KubeVirt VM, pass the VMI name
+        if container_ip == 'kubevirt-vm':
+            headers['X-VMI-Name'] = container_id
+            headers['X-Namespace'] = 'legacy-use'
         
         connect_kwargs = {}
         if subprotocol:

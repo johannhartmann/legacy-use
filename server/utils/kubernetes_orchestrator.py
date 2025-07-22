@@ -130,14 +130,12 @@ class KubernetesOrchestrator(ContainerOrchestrator):
                 name = metadata.get('name', '')
                 labels = metadata.get('labels', {})
                 
-                # Get IP address
-                ip = None
-                interfaces = vmi.get('status', {}).get('interfaces', [])
-                if interfaces:
-                    ip = interfaces[0].get('ipAddress')
+                # For KubeVirt VMs, use the existing noVNC proxy which now supports KubeVirt
+                # The noVNC proxy will detect it's a KubeVirt VM and proxy to the VNC subresource
+                ip = 'kubevirt-vm'  # Special marker to indicate KubeVirt VM
                 
-                # VMIs expose VNC on port 5900
-                ports = {'5900': '5900'}
+                # Store VMI information
+                ports = {'5900': '5900', 'vmi_name': name}
                 
                 container = ContainerInfo(
                     id=name,
@@ -192,19 +190,17 @@ class KubernetesOrchestrator(ContainerOrchestrator):
                 name=container_id
             )
             
-            # Get IP address
-            ip = None
-            interfaces = vmi.get('status', {}).get('interfaces', [])
-            if interfaces:
-                ip = interfaces[0].get('ipAddress')
+            # For KubeVirt VMs, use special marker
+            vmi_name = vmi['metadata']['name']
+            ip = 'kubevirt-vm'  # Special marker for KubeVirt VM
             
             return ContainerInfo(
-                id=vmi['metadata']['name'],
-                name=vmi['metadata']['name'],
+                id=vmi_name,
+                name=vmi_name,
                 labels=vmi['metadata'].get('labels', {}),
                 status=vmi.get('status', {}).get('phase', 'Unknown'),
                 ip=ip,
-                ports={'5900': '5900'}
+                ports={'5900': '5900', 'vmi_name': vmi_name}
             )
             
         except ApiException as e:
