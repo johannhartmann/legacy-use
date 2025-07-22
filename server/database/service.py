@@ -121,21 +121,6 @@ class DatabaseService:
             'blocking_job_ids': [job['id'] for job in blocking_jobs],
         }
 
-    def get_blocking_jobs_for_target(self, target_id, limit: int = 10, offset: int = 0):
-        """Get jobs that are blocking the execution queue for a target (jobs in ERROR or PAUSED state).
-        Uses is_target_queue_paused as source of truth.
-        """
-        # Get blocking information from the source of truth
-        blocking_info = self.is_target_queue_paused(target_id)
-
-        # Return the blocking jobs with optional limit and offset
-        blocking_jobs = blocking_info['blocking_jobs']
-
-        # Apply limit and offset if needed
-        if offset > 0 or limit < len(blocking_jobs):
-            return blocking_jobs[offset : offset + limit]
-        return blocking_jobs
-
     # Session methods
     def create_session(self, session_data):
         session = self.Session()
