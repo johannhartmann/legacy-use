@@ -11,8 +11,7 @@ from sqlalchemy import (
     String,
 )
 from sqlalchemy.dialects.sqlite import JSON as SQLiteJSON
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.types import TEXT, TypeDecorator
 
 Base = declarative_base()
