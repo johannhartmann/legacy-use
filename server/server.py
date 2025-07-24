@@ -7,9 +7,9 @@ import logging
 import os
 from datetime import datetime, timedelta
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.status import HTTP_401_UNAUTHORIZED
+from fastapi.responses import JSONResponse
 
 from server.computer_use import APIProvider
 from server.database import db
@@ -118,11 +118,20 @@ async def auth_middleware(request: Request, call_next):
         if re.match(pattern, request.url.path):
             return await call_next(request)
 
-    api_key = await get_api_key(request)
-    if api_key == settings.API_KEY:
-        return await call_next(request)
-
-    raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail='Invalid API Key')
+    try:
+        api_key = await get_api_key(request)
+        if api_key == settings.API_KEY:
+            return await call_next(request)
+        else:
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={'detail': 'Invalid API Key'},
+            )
+    except HTTPException as e:
+        return JSONResponse(
+            status_code=e.status_code,
+            content={'detail': e.detail},
+        )
 
 
 # Add CORS middleware
