@@ -1,8 +1,8 @@
 # Tiltfile for legacy-use development with Kind and local registry
 # Based on https://docs.tilt.dev/example_helm.html
 
-# Fail fast on errors
-update_settings(max_parallel_updates=3)
+# Limit parallel updates to prevent resource contention
+update_settings(max_parallel_updates=2)
 
 # Configure file watching to ignore temp files and VM images
 watch_settings(ignore=[
@@ -32,6 +32,21 @@ if not kubevirt_installed:
     print("KubeVirt not detected - Windows VM target will not be available")
 else:
     print("KubeVirt detected - Windows VM target will be available")
+
+# VM Cleanup - manual cleanup for orphaned VMs
+local_resource(
+    'vm-cleanup',
+    cmd='''
+        echo "Cleaning up orphaned VMs..."
+        pkill -f virt-launcher || true
+        pkill -f "qemu.*legacy-use" || true  
+        pkill -f "samsung_galaxy_s10" || true
+        echo "VM cleanup complete"
+    ''',
+    labels=['tools'],
+    auto_init=False,
+    trigger_mode=TRIGGER_MODE_MANUAL
+)
 
 # Ensure namespace exists
 k8s_yaml(blob("""
@@ -146,13 +161,13 @@ k8s_yaml(helm(
     set=[
         'windowsXpKubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
         'windows10Kubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
+        'macosMojaveKubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
     ]
 ))
 
 # Configure individual k8s resources
 k8s_resource(
     'legacy-use-database',
-    port_forwards='5432:5432',
     labels=['database']
 )
 
@@ -168,37 +183,27 @@ k8s_resource(
 
 k8s_resource(
     'legacy-use-mcp-server',
-    port_forwards='3000:3000',
+    port_forwards='5174:3000',
     labels=['core'],
-    resource_deps=['legacy-use-mgmt']  # MCP depends on mgmt, which depends on database
+    resource_deps=['legacy-use-android-target']  # Start after all container targets
 )
 
 k8s_resource(
     'legacy-use-wine-target',
-    port_forwards=[
-        '5900:5900',  # VNC
-        '6080:6080',  # noVNC
-    ],
-    labels=['targets']
+    labels=['targets'],
+    resource_deps=['legacy-use-mgmt', 'legacy-use-database']
 )
 
 k8s_resource(
     'legacy-use-linux-target',
-    port_forwards=[
-        '5901:5900',  # VNC (mapped to avoid conflict)
-        '6081:80',    # noVNC (mapped to avoid conflict)
-    ],
-    labels=['targets']
+    labels=['targets'],
+    resource_deps=['legacy-use-wine-target']  # Start after Wine target
 )
 
 k8s_resource(
     'legacy-use-android-target',
-    port_forwards=[
-        '5555:5555',  # ADB
-        '5902:5900',  # VNC (mapped to avoid conflict)
-        '6082:6080',  # noVNC (mapped to avoid conflict)
-    ],
-    labels=['targets']
+    labels=['targets'],
+    resource_deps=['legacy-use-linux-target']  # Start after Linux target
 )
 
 k8s_resource(
@@ -210,9 +215,70 @@ k8s_resource(
 
 # Windows KubeVirt resources
 if kubevirt_installed:
-    # Windows VM resources - Tilt doesn't automatically track VirtualMachineInstanceReplicaSet
-    # For now, we'll just use local resources to manage the Windows VM
-    # The VMIRS will be deployed by Helm but not tracked by Tilt's k8s_resource
+    # Note: VirtualMachineInstanceReplicaSets are not tracked by Tilt as k8s_resources
+    # They are deployed by Helm but we can't use k8s_resource to manage dependencies
+    # Instead, we'll use local_resources for monitoring and control
+    
+    # Start Windows XP VM
+    local_resource(
+        'windows-xp-vm-start',
+        cmd='''
+            echo "Starting Windows XP VM..."
+            kubectl scale vmirs -n legacy-use legacy-use-windows-xp-vmirs --replicas=1 2>/dev/null || true
+            echo "Waiting for Windows XP VMI to be created..."
+            kubectl wait --for=jsonpath='{.status.replicas}'=1 vmirs/legacy-use-windows-xp-vmirs -n legacy-use --timeout=60s 2>/dev/null || true
+        ''',
+        labels=['vms'],
+        auto_init=True,
+        resource_deps=['legacy-use-wine-target', 'legacy-use-linux-target', 'legacy-use-android-target']
+    )
+    
+    # Start Windows 10 VM after Windows XP
+    local_resource(
+        'windows-10-vm-start',
+        cmd='''
+            echo "Starting Windows 10 VM..."
+            kubectl scale vmirs -n legacy-use legacy-use-windows-10-vmirs --replicas=1 2>/dev/null || true
+            echo "Waiting for Windows 10 VMI to be created..."
+            kubectl wait --for=jsonpath='{.status.replicas}'=1 vmirs/legacy-use-windows-10-vmirs -n legacy-use --timeout=60s 2>/dev/null || true
+        ''',
+        labels=['vms'],
+        auto_init=True,
+        resource_deps=['windows-xp-vm-start']
+    )
+    
+    # Start macOS Mojave VM after Windows 10
+    local_resource(
+        'macos-mojave-vm-start',
+        cmd='''
+            echo "Starting macOS Mojave VM..."
+            kubectl scale vmirs -n legacy-use legacy-use-macos-mojave-vmirs --replicas=1 2>/dev/null || true
+            echo "Waiting for macOS Mojave VMI to be created..."
+            kubectl wait --for=jsonpath='{.status.replicas}'=1 vmirs/legacy-use-macos-mojave-vmirs -n legacy-use --timeout=60s 2>/dev/null || true
+            echo "All VMs started. Checking status..."
+            kubectl get vmirs -n legacy-use
+        ''',
+        labels=['vms'],
+        auto_init=True,
+        resource_deps=['windows-10-vm-start']
+    )
+    
+    # Manual VM operations
+    local_resource(
+        'vm-restart-all',
+        cmd='''
+            echo "Restarting all VMs..."
+            kubectl delete vmi -n legacy-use --all --wait=true 2>/dev/null || true
+            kubectl scale vmirs -n legacy-use --all --replicas=0 2>/dev/null || true
+            sleep 5
+            kubectl scale vmirs -n legacy-use --all --replicas=1 2>/dev/null || true
+            echo "VM restart initiated - Tilt dependencies will handle the sequencing"
+        ''',
+        labels=['tools'],
+        auto_init=False,
+        trigger_mode=TRIGGER_MODE_MANUAL
+    )
+    
     
     # Local resource to check Windows VM status
     local_resource(
@@ -220,32 +286,45 @@ if kubevirt_installed:
         cmd='kubectl get vmirs,vmi,pods,pvc -n legacy-use | grep windows || echo "No Windows VM resources found"',
         labels=['targets'],
         auto_init=False,
-        trigger_mode=TRIGGER_MODE_MANUAL
+        trigger_mode=TRIGGER_MODE_MANUAL,
+        resource_deps=['legacy-use-mgmt']
     )
     
-    # Local resource to manually create port forwards for Windows XP VM
-    local_resource(
-        'windows-xp-vm-ports',
-        serve_cmd='kubectl port-forward -n legacy-use svc/legacy-use-windows-xp-kubevirt 3389:3389 5903:5900',
-        labels=['targets'],
-        auto_init=False,
-        trigger_mode=TRIGGER_MODE_MANUAL
-    )
     
-    # Local resource to check Windows 10 VM status
+    # Windows 10 VM resources
     local_resource(
         'windows-10-vm-status',
         cmd='kubectl get vmirs,vmi,pods,pvc -n legacy-use | grep windows-10 || echo "No Windows 10 VM resources found"',
         labels=['targets'],
         auto_init=False,
-        trigger_mode=TRIGGER_MODE_MANUAL
+        trigger_mode=TRIGGER_MODE_MANUAL,
+        resource_deps=['legacy-use-mgmt']
     )
     
-    # Local resource to manually create port forwards for Windows 10 VM
+    
+    # macOS Mojave VM resources
     local_resource(
-        'windows-10-vm-ports',
-        serve_cmd='kubectl port-forward -n legacy-use svc/legacy-use-windows-10-kubevirt 3390:3389 5904:5900',
+        'macos-mojave-vm-status',
+        cmd='kubectl get vmirs,vmi,pods,pvc -n legacy-use | grep mojave || echo "No macOS Mojave VM resources found"',
         labels=['targets'],
+        auto_init=False,
+        trigger_mode=TRIGGER_MODE_MANUAL,
+        resource_deps=['legacy-use-mgmt']
+    )
+    
+    # macOS doesn't have RDP, so no port forwarding needed - use noVNC proxy
+    
+    # Scale VMs tool
+    local_resource(
+        'scale-vmirs',
+        cmd='''
+            echo "Scaling all VirtualMachineInstanceReplicaSets to 1 replica..."
+            kubectl scale vmirs -n legacy-use --all --replicas=1
+            echo ""
+            echo "Current VMIRS status:"
+            kubectl get vmirs -n legacy-use
+        ''',
+        labels=['tools'],
         auto_init=False,
         trigger_mode=TRIGGER_MODE_MANUAL
     )
@@ -283,6 +362,14 @@ local_resource(
     trigger_mode=TRIGGER_MODE_MANUAL
 )
 
+local_resource(
+    'db-migrations',
+    cmd='cd server && uv run alembic upgrade head',
+    labels=['tools'],
+    auto_init=False,
+    trigger_mode=TRIGGER_MODE_MANUAL
+)
+
 # Print helpful information
 print("""
 Legacy-use Development Environment
@@ -291,29 +378,24 @@ Legacy-use Development Environment
 Services will be available at:
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:8088
-- MCP Server: http://localhost:3000/mcp
-- PostgreSQL: localhost:5432
+- MCP Server: http://localhost:5174/mcp
 - noVNC Proxy: http://localhost:8090
 
 Container Targets:
-- Wine Target VNC: vnc://localhost:5900 (password: wine)
-- Wine Target noVNC: Access via Management UI
-- Linux Target VNC: vnc://localhost:5901 (password: password123)
-- Linux Target noVNC: Access via Management UI
-- Android Target ADB: localhost:5555
-- Android Target VNC: vnc://localhost:5902
-- Android Target noVNC: Access via Management UI""")
+- Wine Target: Access via Management UI or noVNC proxy (http://localhost:8090)
+- Linux Target: Access via Management UI or noVNC proxy (http://localhost:8090)
+- Android Target: Access via Management UI or noVNC proxy (http://localhost:8090)""")
 
 if kubevirt_installed:
     print("""
-Windows KubeVirt Targets (KubeVirt detected):
-- Windows XP VM: Access through the Management UI at http://localhost:5173
-  - Manual port forwarding: Click 'windows-xp-vm-ports' in Tilt UI
-  - RDP: localhost:3389, VNC: localhost:5903
-- Windows 10 VM: Access through the Management UI at http://localhost:5173
-  - Manual port forwarding: Click 'windows-10-vm-ports' in Tilt UI
-  - RDP: localhost:3390, VNC: localhost:5904
-- Both VMs use pre-built images loaded via CDI from Mayflower intranet""")
+Windows & macOS KubeVirt Targets (KubeVirt detected):
+- Windows XP VM: Access via Management UI or noVNC proxy (http://localhost:8090)
+- Windows 10 VM: Access via Management UI or noVNC proxy (http://localhost:8090)
+- macOS Mojave VM: Access via Management UI or noVNC proxy (http://localhost:8090)
+  
+Note: VMs start with staggered timing to reduce resource spikes
+  - Windows XP (1GB) → 30s → Windows 10 (2GB) → 30s → macOS Mojave (4GB)
+  - Use 'vm-restart-sequenced' to manually restart VMs with proper sequencing""")
 else:
     print("""
 Windows KubeVirt Targets: Not available (KubeVirt not installed)
