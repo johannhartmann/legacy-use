@@ -22,22 +22,73 @@ spec:
         {{- end }}
     spec:
       domain:
+        machine:
+          type: q35
         cpu:
           cores: {{ .Values.windows10Kubevirt.cpu.cores }}
+          threads: 1
+          model: host-passthrough
         memory:
           guest: {{ .Values.windows10Kubevirt.memory }}
+        features:
+          acpi:
+            enabled: true
+          apic:
+            enabled: true
+          hyperv:
+            relaxed:
+              enabled: true
+            vapic:
+              enabled: true
+            vpindex:
+              enabled: true
+            spinlocks:
+              enabled: true
+              spinlocks: 8191
+            synic:
+              enabled: true
+            synictimer:
+              enabled: true
+            tlbflush:
+              enabled: true
+            frequencies:
+              enabled: true
+            reenlightenment:
+              enabled: true
+            ipi:
+              enabled: true
+            runtime:
+              enabled: true
+            reset:
+              enabled: true
+        clock:
+          utc: {}
+          timer:
+            hpet:
+              present: false
+            pit:
+              tickPolicy: delay
+            rtc:
+              tickPolicy: catchup
+            hyperv: {}
         devices:
           disks:
           - name: windows-disk
             disk:
               bus: virtio
-          - name: cloudinit
-            disk:
-              bus: sata
+            bootOrder: 1
           interfaces:
           - name: default
             masquerade: {}
-            model: e1000e  # Better network driver for Windows 10
+            model: virtio  # Use virtio-net-pci as in QEMU setup
+          inputs:
+          - type: tablet
+            bus: usb
+            name: tablet
+          graphics:
+          - type: vnc
+            listen:
+              type: socket
         resources:
           requests:
             memory: {{ .Values.windows10Kubevirt.memory }}
@@ -47,22 +98,14 @@ spec:
         pod: {}
       volumes:
       - name: windows-disk
-        {{- if .Values.windows10Kubevirt.diskUrl }}
-        dataVolume:
-          name: {{ include "legacy-use.fullname" . }}-windows-10-dv
-        {{- else }}
+        {{- if .Values.windows10Kubevirt.containerDisk }}
         containerDisk:
-          image: {{ .Values.windows10Kubevirt.containerDiskImage }}
-          imagePullPolicy: Always
+          image: {{ .Values.windows10Kubevirt.containerDisk.image }}
+          imagePullPolicy: {{ .Values.windows10Kubevirt.containerDisk.pullPolicy | default "IfNotPresent" }}
+        {{- else }}
+        persistentVolumeClaim:
+          claimName: {{ include "legacy-use.fullname" . }}-windows-10-pvc
         {{- end }}
-      - name: cloudinit
-        cloudInitNoCloud:
-          userData: |
-            #cloud-config
-            hostname: {{ .Values.windows10Kubevirt.hostname }}
-            {{- if .Values.windows10Kubevirt.userData }}
-            {{- .Values.windows10Kubevirt.userData | nindent 12 }}
-            {{- end }}
       {{- with .Values.windows10Kubevirt.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
