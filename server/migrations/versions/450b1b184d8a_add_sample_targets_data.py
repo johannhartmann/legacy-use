@@ -55,7 +55,7 @@ def upgrade() -> None:
                 'legacy-use-wine-target',  -- Use Kubernetes service name
                 '5900',
                 '',
-                'wine',
+                '',  -- No password
                 '1920',
                 '1080',
                 'vnc.html',
