@@ -33,7 +33,7 @@ kubectl port-forward -n legacy-use deployment/legacy-use-wine-target 6080:6080
 
 # Open in browser
 open http://localhost:6080/vnc.html
-# Password: wine
+# No password required
 ```
 
 ### Via VNC Client
@@ -43,7 +43,7 @@ kubectl port-forward -n legacy-use deployment/legacy-use-wine-target 5900:5900
 
 # Connect with VNC client
 vncviewer localhost:5900
-# Password: wine
+# No password required
 ```
 
 ## Install Windows Applications
@@ -88,7 +88,7 @@ Once Wine is running, create a target in legacy-use:
   "type": "vnc",
   "host": "legacy-use-wine-target",
   "port": 5900,
-  "password": "wine",
+  "password": "",
   "width": 1920,
   "height": 1080
 }

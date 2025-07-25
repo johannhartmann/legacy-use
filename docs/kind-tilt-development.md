@@ -126,7 +126,7 @@ psql -h localhost -U postgres -d legacy_use_demo
 ## Target Access
 
 ### Wine Target (Windows Apps)
-- VNC: vnc://localhost:5900 (password: wine)
+- VNC: vnc://localhost:5900 (no password)
 - noVNC: http://localhost:6080
 
 ### Linux Target

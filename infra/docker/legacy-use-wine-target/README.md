@@ -44,13 +44,13 @@ docker build -t legacy-use-wine-target -f infra/docker/legacy-use-wine-target/Do
 **Web Browser (noVNC)**:
 ```bash
 http://localhost:6080/vnc.html
-Password: wine
+No password required
 ```
 
 **VNC Client**:
 ```bash
 vncviewer localhost:5900
-Password: wine
+No password required
 ```
 
 ### 3. Install Windows Applications
@@ -74,7 +74,7 @@ wine /home/wineuser/apps/myapp.exe
   "type": "vnc",
   "host": "legacy-use-wine-target",
   "port": 5900,
-  "password": "wine",
+  "password": "",
   "width": 1920,
   "height": 1080
 }

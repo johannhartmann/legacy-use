@@ -24,8 +24,8 @@ cd examples
 ```
 
 4. Access applications via VNC:
-   - Web browser: http://localhost:6080/vnc.html (password: wine)
-   - VNC client: localhost:5900 (password: wine)
+   - Web browser: http://localhost:6080/vnc.html (no password)
+   - VNC client: localhost:5900 (no password)
 
 ## Example Applications
 

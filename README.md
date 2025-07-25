@@ -135,7 +135,7 @@ For lightweight Windows application automation:
 
 # Access via web browser
 open http://localhost:6080/vnc.html
-# Password: wine
+# No password required
 ```
 
 **Wine Target Configuration:**
@@ -145,7 +145,7 @@ open http://localhost:6080/vnc.html
   "type": "vnc",
   "host": "wine-target",
   "port": 5900,
-  "password": "wine"
+  "password": ""
 }
 ```
 

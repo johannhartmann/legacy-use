@@ -47,6 +47,7 @@ python test_server.py  # Test database connection and API conversion
 # Quick development setup
 make dev-setup    # Sets up Kind cluster with KubeVirt
 make tilt         # Start Tilt (foreground, with auto-reload)
+make tilt-down    # Stop Tilt (properly cleans up VMs)
 make dev-teardown # Tear down everything
 
 # Individual commands
@@ -56,7 +57,7 @@ make kind-teardown # Tear down Kind cluster and registry
 
 make tilt          # Start Tilt in foreground (recommended)
 make tilt-up       # Start Tilt in background
-make tilt-down     # Stop Tilt (preserves Kind cluster)
+make tilt-down     # Stop Tilt and clean up VMs (preserves Kind cluster)
 make tilt-status   # Check Tilt status
 
 make build         # Build all Docker images
@@ -129,7 +130,7 @@ npm run test
 - **Management UI**: http://localhost:5173 (frontend)
 - **Backend API**: http://localhost:8088 (requires API key)
 - **MCP Server**: http://localhost:3000/mcp (Model Context Protocol server for Claude Desktop integration)
-- **Wine Target**: VNC on port 5900, noVNC on http://localhost:6080 (Windows apps via Wine, password: wine)
+- **Wine Target**: VNC on port 5900, noVNC on http://localhost:6080 (Windows apps via Wine, no password)
 - **Linux Target**: VNC on port 5901, noVNC on http://localhost:6081/static/vnc.html (Linux desktop with GnuCash, no password)
 - **Android Target**: ADB on port 5555, VNC on port 5902, noVNC on http://localhost:6082 (Android emulator)
 - **Demo Database**: PostgreSQL on port 5432
