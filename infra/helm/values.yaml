@@ -361,22 +361,23 @@ windowsXpKubevirt:
   # VM configuration
   hostname: "legacy-winxp"
   cpu:
-    cores: 4
-  memory: "8Gi"
+    cores: 2
+  memory: "2Gi"  # Match working QEMU setup
   
   # Labels for the VMs
   labels:
     legacy-use.target-type: "windows-xp-vm"
     legacy-use.scalable: "true"
   
-  # Disk URL for CDI to download (if provided, will use DataVolume instead of containerDisk)
-  diskUrl: "https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=winxp.qcow2"
+  # Container disk configuration (recommended for production)
+  containerDisk:
+    image: "registry.git.mayflower.de/legacy-use/legacy-use/legacy-use-windows-xp-containerdisk:latest"
+    pullPolicy: "IfNotPresent"
+  
   
   # Disk configuration
   # Option 1: Use ephemeral disk (creates new disk for each VM instance)
   ephemeralDisk: false
-  # Option 2: Use containerDisk (recommended for scaling)
-  containerDiskImage: ""  # Leave empty to use diskUrl instead
   
   # Persistence configuration (for ephemeral disk template)
   persistence:
@@ -385,20 +386,6 @@ windowsXpKubevirt:
     size: "100Gi"
     storageClass: ""
   
-  # DataVolume for Windows image (CDI) - used with ephemeral disk
-  dataVolumeTemplate:
-    enabled: false  # Enable if you want to import Windows image
-    source:
-      # Option 1: HTTP source
-      http:
-        url: ""  # URL to Windows ISO or qcow2 image
-      # Option 2: Registry source
-      # registry:
-      #   url: "docker://quay.io/kubevirt/windows:latest"
-      # Option 3: PVC source
-      # pvc:
-      #   name: "windows-golden-image"
-      #   namespace: "default"
   
   # Service configuration
   service:
@@ -430,21 +417,22 @@ windows10Kubevirt:
   hostname: "legacy-win10"
   cpu:
     cores: 4
-  memory: "8Gi"
+  memory: "2Gi"  # Reduced from 8Gi to 2Gi
   
   # Labels for the VMs
   labels:
     legacy-use.target-type: "windows-10-vm"
     legacy-use.scalable: "true"
   
-  # Disk URL for CDI to download (if provided, will use DataVolume instead of containerDisk)
-  diskUrl: "https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=win10.qcow2"
+  # Container disk configuration (recommended for production)
+  containerDisk:
+    image: "registry.git.mayflower.de/legacy-use/legacy-use/legacy-use-windows-10-containerdisk:latest"
+    pullPolicy: "IfNotPresent"
+  
   
   # Disk configuration
   # Option 1: Use ephemeral disk (creates new disk for each VM instance)
   ephemeralDisk: false
-  # Option 2: Use containerDisk (recommended for scaling)
-  containerDiskImage: ""  # Leave empty to use diskUrl instead
   
   # Persistence configuration (for ephemeral disk template)
   persistence:
@@ -453,20 +441,6 @@ windows10Kubevirt:
     size: "120Gi"  # Windows 10 needs more space than XP
     storageClass: ""
   
-  # DataVolume for Windows image (CDI) - used with ephemeral disk
-  dataVolumeTemplate:
-    enabled: false  # Enable if you want to import Windows image
-    source:
-      # Option 1: HTTP source
-      http:
-        url: ""  # URL to Windows ISO or qcow2 image
-      # Option 2: Registry source
-      # registry:
-      #   url: "docker://quay.io/kubevirt/windows:latest"
-      # Option 3: PVC source
-      # pvc:
-      #   name: "windows-10-golden-image"
-      #   namespace: "default"
   
   # Service configuration
   service:
@@ -482,6 +456,52 @@ windows10Kubevirt:
   # Node selector for VMs
   nodeSelector: {}
     # kubernetes.io/hostname: node-with-kubevirt
+  
+  # Tolerations for VMs
+  tolerations: []
+  
+  # Affinity rules
+  affinity: {}
+
+# macOS Mojave KubeVirt VM Configuration (Requires KubeVirt in cluster)
+macosMojaveKubevirt:
+  enabled: false
+  replicas: 1  # Number of macOS Mojave VM instances
+  
+  # VM configuration
+  hostname: "legacy-mojave"
+  cpu:
+    cores: 4
+  memory: "4Gi"  # macOS needs reasonable memory
+  
+  # Labels for the VMs
+  labels:
+    legacy-use.target-type: "macos-mojave-vm"
+    legacy-use.scalable: "true"
+  
+  # Container disk image from registry
+  containerDisk:
+    image: "registry.git.mayflower.de/legacy-use/legacy-use/legacy-use-macos-mojave-containerdisk:latest"
+    pullPolicy: "IfNotPresent"
+  
+  # Disk configuration
+  disk:
+    size: "64Gi"
+    storageClass: ""
+  
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    vncPort: 5900
+    additionalPorts: []
+  
+  # User data for cloud-init
+  userData: |
+    # macOS cloud-init configuration
+  
+  # Node selector for VMs
+  nodeSelector: {}
   
   # Tolerations for VMs
   tolerations: []

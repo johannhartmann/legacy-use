@@ -20,24 +20,51 @@ spec:
         {{- with .Values.windowsXpKubevirt.labels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+      annotations:
+        kubevirt.io/disablePCIHole64: "true"
     spec:
       domain:
+        machine:
+          type: pc
         cpu:
           cores: {{ .Values.windowsXpKubevirt.cpu.cores }}
+          model: host-passthrough
         memory:
           guest: {{ .Values.windowsXpKubevirt.memory }}
+        features:
+          acpi:
+            enabled: true
+          apic:
+            enabled: true
+          kvm:
+            hidden: false
+        clock:
+          utc: {}
+          timer:
+            hpet:
+              present: false
+            pit:
+              tickPolicy: delay
+            rtc:
+              tickPolicy: catchup
         devices:
           disks:
           - name: windows-disk
             disk:
-              bus: virtio
-          - name: cloudinit
-            disk:
               bus: sata
+            bootOrder: 1
           interfaces:
           - name: default
             masquerade: {}
             model: rtl8139
+          inputs:
+          - type: tablet
+            bus: usb
+            name: tablet
+          graphics:
+          - type: vnc
+            listen:
+              type: socket
         resources:
           requests:
             memory: {{ .Values.windowsXpKubevirt.memory }}
@@ -47,22 +74,14 @@ spec:
         pod: {}
       volumes:
       - name: windows-disk
-        {{- if .Values.windowsXpKubevirt.diskUrl }}
-        dataVolume:
-          name: {{ include "legacy-use.fullname" . }}-windows-xp-dv
-        {{- else }}
+        {{- if .Values.windowsXpKubevirt.containerDisk }}
         containerDisk:
-          image: localhost:5000/legacy-use-windows-xp-containerdisk:latest
-          imagePullPolicy: Always
+          image: {{ .Values.windowsXpKubevirt.containerDisk.image }}
+          imagePullPolicy: {{ .Values.windowsXpKubevirt.containerDisk.pullPolicy | default "IfNotPresent" }}
+        {{- else }}
+        persistentVolumeClaim:
+          claimName: {{ include "legacy-use.fullname" . }}-windows-xp-pvc
         {{- end }}
-      - name: cloudinit
-        cloudInitNoCloud:
-          userData: |
-            #cloud-config
-            hostname: {{ .Values.windowsXpKubevirt.hostname }}
-            {{- if .Values.windowsXpKubevirt.userData }}
-            {{- .Values.windowsXpKubevirt.userData | nindent 12 }}
-            {{- end }}
       {{- with .Values.windowsXpKubevirt.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
