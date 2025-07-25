@@ -1,0 +1,88 @@
+{{- if .Values.macosMojaveKubevirt.enabled -}}
+apiVersion: kubevirt.io/v1
+kind: VirtualMachineInstanceReplicaSet
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-macos-mojave-vmirs
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: macos-mojave-kubevirt
+spec:
+  replicas: {{ .Values.macosMojaveKubevirt.replicas }}
+  selector:
+    matchLabels:
+      {{- include "legacy-use.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: macos-mojave-kubevirt
+  template:
+    metadata:
+      labels:
+        {{- include "legacy-use.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: macos-mojave-kubevirt
+        {{- with .Values.macosMojaveKubevirt.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      domain:
+        cpu:
+          cores: {{ .Values.macosMojaveKubevirt.cpu.cores }}
+        memory:
+          guest: {{ .Values.macosMojaveKubevirt.memory }}
+        devices:
+          disks:
+          - name: macos-disk
+            disk:
+              bus: sata
+          - name: cloudinit
+            disk:
+              bus: sata
+          interfaces:
+          - name: default
+            bridge: {}
+            model: e1000
+        machine:
+          type: pc-q35-rhel8.6.0
+        resources:
+          requests:
+            memory: {{ .Values.macosMojaveKubevirt.memory }}
+            cpu: {{ .Values.macosMojaveKubevirt.cpu.cores }}
+      networks:
+      - name: default
+        pod: {}
+      volumes:
+      - name: macos-disk
+        {{- if .Values.macosMojaveKubevirt.containerDisk }}
+        containerDisk:
+          image: {{ .Values.macosMojaveKubevirt.containerDisk.image }}
+          imagePullPolicy: {{ .Values.macosMojaveKubevirt.containerDisk.pullPolicy | default "IfNotPresent" }}
+        {{- else }}
+        persistentVolumeClaim:
+          claimName: {{ include "legacy-use.fullname" . }}-macos-mojave-pvc
+        {{- end }}
+      - name: cloudinit
+        cloudInitNoCloud:
+          userData: |
+            {{- .Values.macosMojaveKubevirt.userData | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-macos-mojave-kubevirt
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: macos-mojave-kubevirt
+spec:
+  type: {{ .Values.macosMojaveKubevirt.service.type }}
+  ports:
+    - port: {{ .Values.macosMojaveKubevirt.service.vncPort }}
+      targetPort: 5900
+      protocol: TCP
+      name: vnc
+    {{- range .Values.macosMojaveKubevirt.service.additionalPorts }}
+    - port: {{ .port }}
+      targetPort: {{ .targetPort }}
+      protocol: {{ .protocol | default "TCP" }}
+      name: {{ .name }}
+    {{- end }}
+  selector:
+    {{- include "legacy-use.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: macos-mojave-kubevirt
+{{- end }}
