@@ -38,6 +38,14 @@ spec:
             enabled: true
           kvm:
             hidden: false
+          hyperv:
+            relaxed:
+              enabled: true
+            vapic:
+              enabled: true
+            spinlocks:
+              enabled: true
+              spinlocks: 8191
         clock:
           utc: {}
           timer:
@@ -47,6 +55,8 @@ spec:
               tickPolicy: delay
             rtc:
               tickPolicy: catchup
+            hyperv:
+              present: true
         devices:
           disks:
           - name: windows-disk
