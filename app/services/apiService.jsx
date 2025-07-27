@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-// Always use the API_URL from environment variables
-// This should be set to the full URL of your API server (e.g., http://localhost:8088)
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8088';
+// Use relative URL for API to work with reverse proxy
+// In development and production, everything goes through port 80
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 // Create an axios instance with default config
 const apiClient = axios.create({
@@ -58,6 +58,17 @@ export const testApiKey = async apiKey => {
   } catch (error) {
     console.error('Error testing API key:', error);
     throw error;
+  }
+};
+
+// Get initialization status (no auth required)
+export const getInitStatus = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/api/init-status`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching init status:', error);
+    return null;
   }
 };
 

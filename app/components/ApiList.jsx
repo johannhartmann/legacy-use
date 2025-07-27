@@ -89,7 +89,7 @@ const ApiList = () => {
     if (!api) return '';
 
     const params = paramValues[apiName] || {};
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8088';
+    const apiUrl = import.meta.env.VITE_API_URL || '';
 
     // Properly escape the JSON for curl command
     const jsonData = JSON.stringify({

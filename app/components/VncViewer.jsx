@@ -66,8 +66,8 @@ const VncViewer = () => {
     return null;
   }
 
-  // Base API URL from environment or default
-  const baseApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8088';
+  // Use relative URL to work with reverse proxy
+  const baseApiUrl = import.meta.env.VITE_API_URL || '';
 
   // Show loading while we're getting session ID or setting cookie
   if (loading || !cookieSet) {
