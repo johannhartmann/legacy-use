@@ -181,6 +181,14 @@ install_kubevirt() {
         kubectl -n kubevirt patch kubevirt kubevirt --type=merge --patch '{"spec":{"configuration":{"developerConfiguration":{"useEmulation":true}}}}'
     fi
     
+    # Configure allowed machine types to support legacy OSes like Windows XP
+    log "Configuring KubeVirt to allow additional machine types..."
+    kubectl -n kubevirt patch kubevirt kubevirt --type=merge --patch '{"spec":{"configuration":{"architectureConfiguration":{"amd64":{"emulatedMachines":["q35*","pc-q35*","pc","pc-i440fx*"]}}}}}'
+    
+    # Configure increased log verbosity for debugging
+    log "Configuring KubeVirt log verbosity for better debugging..."
+    kubectl -n kubevirt patch kubevirt kubevirt --type=merge --patch '{"spec":{"configuration":{"developerConfiguration":{"logVerbosity":{"virtLauncher":6,"virtHandler":6,"virtController":6,"virtAPI":6,"virtOperator":4}}}}}'
+    
     # Wait for KubeVirt to be ready
     log "Waiting for KubeVirt to be ready (this may take a few minutes)..."
     kubectl wait -n kubevirt kubevirt/kubevirt --for=condition=Available --timeout=600s

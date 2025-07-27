@@ -94,6 +94,48 @@ check_env_vars() {
     fi
 }
 
+check_vm_images() {
+    log "Checking for KubeVirt VM images..."
+    local control_plane="${CLUSTER_NAME}-control-plane"
+    
+    # Check if KubeVirt is installed
+    if kubectl get kubevirt -n kubevirt &>/dev/null; then
+        log "KubeVirt detected, checking VM images..."
+        
+        # List of VM images that might be needed
+        local vm_images=(
+            "registry.git.mayflower.de/legacy-use/legacy-use/legacy-use-windows-xp-containerdisk:latest"
+            "registry.git.mayflower.de/legacy-use/legacy-use/legacy-use-windows-10-containerdisk:latest"
+            "registry.git.mayflower.de/legacy-use/legacy-use/legacy-use-macos-mojave-containerdisk:latest"
+        )
+        
+        local missing_images=()
+        for image in "${vm_images[@]}"; do
+            if ! docker exec "$control_plane" crictl images | awk '{print $1":"$2}' | grep -q "^${image}$"; then
+                missing_images+=("$image")
+            fi
+        done
+        
+        if [ ${#missing_images[@]} -gt 0 ]; then
+            warning "VM container images not found in Kind cluster!"
+            warning "Tilt may prune and re-download these large images."
+            echo
+            echo "To prevent re-downloading, run:"
+            echo "  ./scripts/preload-vm-images.sh"
+            echo
+            echo "This will pre-pull VM images (may take 10-30 minutes)."
+            echo "Continue anyway? (y/N)"
+            read -r response
+            if [[ ! "$response" =~ ^[Yy]$ ]]; then
+                log "Aborting. Run ./scripts/preload-vm-images.sh first."
+                exit 0
+            fi
+        else
+            log "✓ All VM images are already loaded"
+        fi
+    fi
+}
+
 prepare_namespace() {
     log "Preparing namespace..."
     
@@ -120,11 +162,12 @@ start_tilt() {
     
     # Start Tilt
     log "Starting Tilt UI at http://localhost:10350"
+    log "Tilt output will be logged to: tilt.log"
     log "Press Ctrl+C to stop"
     echo
     
     # Run Tilt
-    tilt up --debug --verbose --stream=true --port 10350
+    tilt up --debug --verbose --stream=true --host=0.0.0.0 --port 10350 | tee tilt.log
 }
 
 # Main execution
@@ -136,6 +179,7 @@ main() {
     
     check_prerequisites
     check_env_vars
+    check_vm_images
     prepare_namespace
     start_tilt
 }

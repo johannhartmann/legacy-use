@@ -59,15 +59,23 @@ clean_kubernetes_resources() {
         helm uninstall legacy-use -n "$NAMESPACE" || true
     fi
     
-    # Delete namespace (optional - uncomment if you want to clean everything)
-    # if kubectl get namespace "$NAMESPACE" &> /dev/null; then
-    #     log "Deleting namespace $NAMESPACE..."
-    #     kubectl delete namespace "$NAMESPACE" --timeout=60s || true
-    # fi
-    
-    # Clean up any remaining resources
-    log "Cleaning up any remaining resources..."
-    kubectl delete all --all -n "$NAMESPACE" --timeout=60s || true
+    # Check for --clean-all flag
+    if [[ " $@ " =~ " --clean-all " ]]; then
+        log "Full cleanup requested (including VM images)..."
+        kubectl delete all,pvc,datavolume --all -n "$NAMESPACE" --timeout=60s || true
+    else
+        # Clean up any remaining resources (but preserve PVCs and DataVolumes)
+        log "Cleaning up resources (preserving VM storage)..."
+        # Delete everything except PVCs and DataVolumes
+        kubectl delete deployment,service,pod,replicaset,statefulset,daemonset,job,cronjob --all -n "$NAMESPACE" --timeout=60s || true
+        
+        # List preserved resources
+        local preserved_pvcs=$(kubectl get pvc -n "$NAMESPACE" --no-headers 2>/dev/null | wc -l)
+        local preserved_dvs=$(kubectl get datavolume -n "$NAMESPACE" --no-headers 2>/dev/null | wc -l)
+        if [ "$preserved_pvcs" -gt 0 ] || [ "$preserved_dvs" -gt 0 ]; then
+            log "Preserved $preserved_pvcs PVCs and $preserved_dvs DataVolumes for faster startup"
+        fi
+    fi
 }
 
 clean_docker_images() {
@@ -97,6 +105,10 @@ print_cleanup_info() {
     echo "• Kind cluster: $CLUSTER_NAME"
     echo "• Local registry: kind-registry"
     echo "• Docker images in registry"
+    echo "• VM disk images (PVCs and DataVolumes)"
+    echo
+    echo "To remove VM disk images too:"
+    echo "  ./scripts/tilt-down.sh --clean-all"
     echo
     echo "To completely remove everything:"
     echo "  ./scripts/kind-teardown.sh"
@@ -110,7 +122,7 @@ main() {
     log "Stopping Tilt development environment..."
     
     stop_tilt
-    clean_kubernetes_resources
+    clean_kubernetes_resources "$@"
     clean_docker_images
     print_cleanup_info
 }
