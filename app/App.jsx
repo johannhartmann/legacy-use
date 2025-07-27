@@ -28,7 +28,7 @@ import TargetList from './components/TargetList';
 import VncViewer from './components/VncViewer';
 import { AiProvider, useAiProvider } from './contexts/AiProviderContext';
 import { ApiKeyProvider, useApiKey } from './contexts/ApiKeyContext';
-import { getConfigurationStatus, getSessions, setApiKeyHeader, testApiKey } from './services/apiService';
+import { getConfigurationStatus, getInitStatus, getSessions, setApiKeyHeader, testApiKey } from './services/apiService';
 
 // Create a dark theme
 const darkTheme = createTheme({
@@ -158,7 +158,7 @@ const AppLayout = () => {
   const location = useLocation();
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [currentSession, setCurrentSession] = useState(null);
-  const { apiKey, setIsApiKeyValid } = useApiKey();
+  const { apiKey, setApiKey, setIsApiKeyValid } = useApiKey();
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
   const [isValidatingApiKey, setIsValidatingApiKey] = useState(true);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -216,44 +216,48 @@ const AppLayout = () => {
       const hasOnboarded = onboardingCompleted === 'true';
       setHasCompletedOnboarding(hasOnboarded);
 
-      // If user hasn't onboarded, check if system is already configured
+      // Only show onboarding if not completed and not handled by init status
       if (!hasOnboarded) {
-        try {
-          const status = await getConfigurationStatus();
-          if (status.configured) {
-            // System is already configured, mark onboarding as complete
-            localStorage.setItem('onboardingCompleted', 'true');
-            setHasCompletedOnboarding(true);
-            setOnboardingOpen(false);
-          } else {
-            // System is not configured, show onboarding
-            setOnboardingOpen(true);
-          }
-        } catch (error) {
-          console.error('Error checking configuration status:', error);
-          // On error, default to showing onboarding
-          setOnboardingOpen(true);
-        }
+        // Init status check in validateApiKey will handle auto-configuration
+        // Only show onboarding if system is not configured
+        setOnboardingOpen(true);
       }
     };
 
     checkOnboardingStatus();
-  }, [apiKey]);
+  }, []);
 
   // Validate API key on mount and when it changes
   useEffect(() => {
     const validateApiKey = async () => {
       setIsValidatingApiKey(true);
       
-      // Check if system is configured before showing API key dialog
-      let systemConfigured = false;
-      try {
-        const status = await getConfigurationStatus();
-        systemConfigured = status.configured;
-      } catch (error) {
-        console.error('Error checking configuration status:', error);
+      // First check init status to see if we need authentication at all
+      const initStatus = await getInitStatus();
+      
+      if (initStatus) {
+        // If system is already configured with AI provider, skip onboarding
+        if (initStatus.is_configured && !hasCompletedOnboarding) {
+          localStorage.setItem('onboardingCompleted', 'true');
+          setHasCompletedOnboarding(true);
+          setOnboardingOpen(false);
+        }
+        
+        // If API key is not required (using default) or provided by backend
+        if (!initStatus.requires_api_key || initStatus.default_api_key) {
+          const keyToUse = initStatus.default_api_key || apiKey || 'not-secure-api-key';
+          
+          // Set the API key automatically
+          setApiKeyHeader(keyToUse);
+          setApiKey(keyToUse);
+          setIsApiKeyValid(true);
+          setApiKeyDialogOpen(false);
+          setIsValidatingApiKey(false);
+          return;
+        }
       }
       
+      // Original validation logic for when API key is required
       if (apiKey) {
         try {
           // Set the API key header for all requests
@@ -268,24 +272,18 @@ const AppLayout = () => {
         } catch (error) {
           console.error('API key validation failed:', error);
           setIsApiKeyValid(false);
-          // Only show API key dialog if system is not configured via environment
-          if (!systemConfigured) {
-            setApiKeyDialogOpen(true);
-          }
+          setApiKeyDialogOpen(true);
         }
       } else {
         setApiKeyHeader(null);
         setIsApiKeyValid(false);
-        // Only show API key dialog if system is not configured via environment
-        if (!systemConfigured) {
-          setApiKeyDialogOpen(true);
-        }
+        setApiKeyDialogOpen(true);
       }
       setIsValidatingApiKey(false);
     };
 
     validateApiKey();
-  }, [apiKey, setIsApiKeyValid, hasCompletedOnboarding]);
+  }, [apiKey, setApiKey, setIsApiKeyValid, hasCompletedOnboarding]);
 
   // Extract session ID from URL if we're on a target detail page
   useEffect(() => {

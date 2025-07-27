@@ -14,19 +14,38 @@ export const ApiKeyContext = createContext({
 
 // Create a provider component
 export const ApiKeyProvider = ({ children }) => {
-  // Get API key from localStorage or set to null
+  // Get API key from environment or localStorage
   const [apiKey, setApiKeyState] = useState(() => {
-    const savedApiKey = localStorage.getItem('apiKey');
     const envApiKey = import.meta.env.VITE_API_KEY;
-    return savedApiKey || envApiKey || null;
+    const savedApiKey = localStorage.getItem('apiKey');
+    
+    // Prioritize environment variable if it exists
+    if (envApiKey) {
+      return envApiKey;
+    }
+    
+    // Only use localStorage if it has a non-empty value
+    if (savedApiKey && savedApiKey.trim() !== '') {
+      return savedApiKey;
+    }
+    
+    // Clear invalid localStorage entry
+    if (savedApiKey === '' || savedApiKey === null) {
+      localStorage.removeItem('apiKey');
+    }
+    
+    return null;
   });
 
   // Track if the API key is valid
   const [isApiKeyValid, setIsApiKeyValid] = useState(false);
 
-  // Update localStorage when apiKey changes
+  // Update localStorage when apiKey changes (but not if it's from env)
   useEffect(() => {
-    if (apiKey) {
+    const envApiKey = import.meta.env.VITE_API_KEY;
+    
+    // Only update localStorage if the API key is different from env variable
+    if (apiKey && apiKey !== envApiKey) {
       localStorage.setItem('apiKey', apiKey);
     }
   }, [apiKey]);
