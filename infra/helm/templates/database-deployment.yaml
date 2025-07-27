@@ -35,11 +35,20 @@ spec:
               protocol: TCP
           env:
             - name: POSTGRES_PASSWORD
-              value: {{ .Values.database.postgresPassword | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret | default (printf "%s-database-secret" (include "legacy-use.fullname" .)) }}
+                  key: postgres-password
             - name: POSTGRES_DB
-              value: {{ .Values.database.postgresDatabase | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret | default (printf "%s-database-secret" (include "legacy-use.fullname" .)) }}
+                  key: postgres-database
             - name: POSTGRES_USER
-              value: {{ .Values.database.postgresUser | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret | default (printf "%s-database-secret" (include "legacy-use.fullname" .)) }}
+                  key: postgres-user
           livenessProbe:
             exec:
               command:
