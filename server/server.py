@@ -88,6 +88,53 @@ async def health_check():
         raise HTTPException(status_code=500, detail=f'Database check failed: {str(e)}')
 
 
+@app.get('/api/init-status')
+async def get_init_status():
+    """Get initialization status to determine if setup is needed.
+    
+    This endpoint is public and helps the frontend determine:
+    1. If API key authentication is required
+    2. If the system is already configured with AI provider credentials
+    3. If a default API key should be used
+    """
+    # Check if API key is configured
+    api_key_configured = bool(settings.API_KEY) if hasattr(settings, 'API_KEY') else False
+    using_default_api_key = not api_key_configured
+    
+    # Check if any AI provider is configured
+    has_anthropic = bool(settings.ANTHROPIC_API_KEY)
+    has_bedrock = all([
+        settings.AWS_ACCESS_KEY_ID,
+        settings.AWS_SECRET_ACCESS_KEY,
+        settings.AWS_REGION,
+    ]) if settings.API_PROVIDER == 'bedrock' else False
+    has_vertex = all([
+        settings.VERTEX_REGION,
+        settings.VERTEX_PROJECT_ID,
+    ]) if settings.API_PROVIDER == 'vertex' else False
+    
+    # System is configured if current provider has valid credentials
+    is_configured = False
+    if settings.API_PROVIDER == 'anthropic':
+        is_configured = has_anthropic
+    elif settings.API_PROVIDER == 'bedrock':
+        is_configured = has_bedrock
+    elif settings.API_PROVIDER == 'vertex':
+        is_configured = has_vertex
+    
+    response = {
+        'requires_api_key': not using_default_api_key,
+        'is_configured': is_configured,
+        'current_provider': settings.API_PROVIDER,
+    }
+    
+    # If using secure API key from environment, provide it to frontend
+    if not using_default_api_key and settings.API_KEY:
+        response['default_api_key'] = settings.API_KEY
+    
+    return response
+
+
 
 
 @app.middleware('http')
@@ -101,6 +148,7 @@ async def auth_middleware(request: Request, call_next):
     # auth whitelist (regex patterns)
     whitelist_patterns = [
         r'^/health$',  # Health check endpoint
+        r'^/api/init-status$',  # Initialization status endpoint
         r'^/favicon\.ico$',  # Favicon requests
         r'^/robots\.txt$',  # Robots.txt requests
         r'^/sitemap\.xml$',  # Sitemap requests
@@ -119,6 +167,12 @@ async def auth_middleware(request: Request, call_next):
             return await call_next(request)
 
     api_key = await get_api_key(request)
+    
+    # If API_KEY is not configured, allow all requests (development mode)
+    if not hasattr(settings, 'API_KEY') or not settings.API_KEY:
+        return await call_next(request)
+    
+    # Otherwise, validate the API key
     if api_key == settings.API_KEY:
         return await call_next(request)
 
