@@ -35,9 +35,9 @@ const Dashboard = () => {
           getTargets(),
         ]);
 
-        setApis(apisData);
-        setSessions(sessionsData);
-        setTargets(targetsData);
+        setApis(apisData || []);
+        setSessions(sessionsData || []);
+        setTargets(targetsData || []);
 
         // Properly handle the paginated response from the API
         const jobsData = jobsResponse?.jobs ? jobsResponse.jobs : [];
@@ -103,7 +103,7 @@ const Dashboard = () => {
           </Button>
         </Box>
         <List dense sx={{ bgcolor: 'background.paper' }}>
-          {jobs.length > 0 ? (
+          {Array.isArray(jobs) && jobs.length > 0 ? (
             jobs.map(job => (
               <React.Fragment key={job.id}>
                 <ListItem button component={RouterLink} to={`/jobs/${job.target_id}/${job.id}`}>
@@ -150,7 +150,7 @@ const Dashboard = () => {
           </Button>
         </Box>
         <List dense sx={{ bgcolor: 'background.paper' }}>
-          {sessions.length > 0 ? (
+          {Array.isArray(sessions) && sessions.length > 0 ? (
             sessions.slice(0, 3).map(session => (
               <React.Fragment key={session.id}>
                 <ListItem button component={RouterLink} to={`/sessions`}>
@@ -184,7 +184,7 @@ const Dashboard = () => {
           </Button>
         </Box>
         <List dense sx={{ bgcolor: 'background.paper' }}>
-          {targets.length > 0 ? (
+          {Array.isArray(targets) && targets.length > 0 ? (
             targets.slice(0, 3).map(target => (
               <React.Fragment key={target.id}>
                 <ListItem button component={RouterLink} to="/targets">
@@ -236,7 +236,7 @@ const Dashboard = () => {
           </Button>
         </Box>
         <List dense sx={{ bgcolor: 'background.paper' }}>
-          {apis.length > 0 ? (
+          {Array.isArray(apis) && apis.length > 0 ? (
             apis.slice(0, 3).map(api => (
               <React.Fragment key={api.name}>
                 <ListItem button component={RouterLink} to="/apis">

@@ -23,11 +23,12 @@ export const AiProvider = ({ children }) => {
     setLoading(true);
     try {
       const providersData = await getProviders();
-      setProviders(providersData.providers || []);
-      setCurrentProvider(providersData.current_provider);
+      const providersList = providersData?.providers || [];
+      setProviders(providersList);
+      setCurrentProvider(providersData?.current_provider || null);
 
       // Check if any provider is configured
-      const configuredProviders = providersData.providers.filter(provider => provider.available);
+      const configuredProviders = providersList.filter(provider => provider.available);
       const hasConfigured = configuredProviders.length > 0;
       setHasConfiguredProvider(hasConfigured);
       // Make sure the active provider is configured
