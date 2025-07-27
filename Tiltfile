@@ -32,6 +32,20 @@ if not kubevirt_installed:
     print("KubeVirt not detected - Windows VM target will not be available")
 else:
     print("KubeVirt detected - Windows VM target will be available")
+    
+    # Ensure KubeVirt is configured to allow i440fx machine types for legacy OS support
+    emulated_machines = str(local('kubectl get kubevirt kubevirt -n kubevirt -o jsonpath="{.spec.configuration.architectureConfiguration.amd64.emulatedMachines}" 2>/dev/null || echo "[]"', quiet=True))
+    if '"pc"' not in emulated_machines:
+        print("Configuring KubeVirt to allow additional machine types for legacy OS support...")
+        local('kubectl -n kubevirt patch kubevirt kubevirt --type=merge --patch \'{"spec":{"configuration":{"architectureConfiguration":{"amd64":{"emulatedMachines":["q35*","pc-q35*","pc","pc-i440fx*"]}}}}}\'', quiet=True)
+        # Give KubeVirt a moment to process the configuration change
+        local('sleep 5', quiet=True)
+    
+    # Ensure KubeVirt has increased log verbosity for debugging
+    log_verbosity = str(local('kubectl get kubevirt kubevirt -n kubevirt -o jsonpath="{.spec.configuration.developerConfiguration.logVerbosity}" 2>/dev/null || echo "{}"', quiet=True))
+    if '"virtLauncher":6' not in log_verbosity:
+        print("Configuring KubeVirt log verbosity for better debugging...")
+        local('kubectl -n kubevirt patch kubevirt kubevirt --type=merge --patch \'{"spec":{"configuration":{"developerConfiguration":{"logVerbosity":{"virtLauncher":6,"virtHandler":6,"virtController":6,"virtAPI":6,"virtOperator":4}}}}}\'', quiet=True)
 
 # VM Cleanup - manual cleanup for orphaned VMs
 local_resource(
@@ -109,11 +123,20 @@ novnc_proxy_image = docker_build_local(
     'infra/docker/legacy-use-novnc-proxy/Dockerfile'
 )
 
+nginx_image = docker_build_local(
+    'legacy-use-nginx',
+    'infra/docker/legacy-use-nginx',
+    'infra/docker/legacy-use-nginx/Dockerfile'
+)
+
 # Get environment variables and create a temporary values file with substituted values
 anthropic_api_key = os.getenv('ANTHROPIC_API_KEY', '')
 legacy_use_api_key = os.getenv('LEGACY_USE_API_KEY', os.getenv('API_KEY', ''))
 
-# Create/update Kubernetes secret from environment variables
+# Create/update Kubernetes secrets from environment variables
+secrets_created = False
+
+# API keys secret
 if anthropic_api_key or legacy_use_api_key:
     print("Creating/updating Kubernetes secret for API keys...")
     secret_cmd = (
@@ -124,45 +147,54 @@ if anthropic_api_key or legacy_use_api_key:
         "--dry-run=client -o yaml | kubectl apply -f -"
     )
     local(secret_cmd, quiet=True)
+    secrets_created = True
 
-# Create values override string
-# If we have secrets, use existingSecret; otherwise use env vars
-if anthropic_api_key or legacy_use_api_key:
-    values_override = """
-management:
-  existingSecret: legacy-use-secrets
-mcpServer:
-  existingSecret: legacy-use-secrets
-"""
+# Database secret (if using database)
+db_password = os.getenv('POSTGRES_PASSWORD', 'postgres')
+db_user = os.getenv('POSTGRES_USER', 'postgres')
+db_name = os.getenv('POSTGRES_DATABASE', 'legacy_use_demo')
+
+if db_password != 'postgres':  # Only create secret if not using default
+    print("Creating/updating Kubernetes secret for database...")
+    db_secret_cmd = (
+        "kubectl create secret generic legacy-use-database-secret " +
+        "--from-literal=postgres-password='{}' ".format(db_password) +
+        "--from-literal=postgres-user='{}' ".format(db_user) +
+        "--from-literal=postgres-database='{}' ".format(db_name) +
+        "--namespace={} ".format(k8s_namespace) +
+        "--dry-run=client -o yaml | kubectl apply -f -"
+    )
+    local(db_secret_cmd, quiet=True)
+    db_secret_exists = True
 else:
-    values_override = """
-management:
-  env:
-    ANTHROPIC_API_KEY: "{}"
-    API_KEY: "{}"
-mcpServer:
-  env:
-    LEGACY_USE_API_KEY: "{}"
-""".format(anthropic_api_key, legacy_use_api_key, legacy_use_api_key)
+    db_secret_exists = False
 
-# Write temporary values file outside of watched paths
-override_file = '/var/tmp/tilt-values-override.yaml'
-local('echo \'{}\' > {}'.format(values_override, override_file))
+# Set Helm values to use secrets (no temporary file with secrets)
+helm_set_values = []
 
-# Always use base tilt values
-values_files = ['infra/helm/values-tilt.yaml', override_file]
+if secrets_created:
+    helm_set_values.extend([
+        'management.existingSecret=legacy-use-secrets',
+        'mcpServer.existingSecret=legacy-use-secrets'
+    ])
+
+if db_secret_exists:
+    helm_set_values.append('database.existingSecret=legacy-use-database-secret')
 
 # Deploy Helm chart using k8s_yaml for individual resource control
+# Combine all set values
+all_set_values = [
+    'windowsXpKubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
+    'windows10Kubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
+    'macosMojaveKubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
+] + helm_set_values
+
 k8s_yaml(helm(
     'infra/helm',
     name='legacy-use',
     namespace=k8s_namespace,
-    values=values_files,
-    set=[
-        'windowsXpKubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
-        'windows10Kubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
-        'macosMojaveKubevirt.enabled={}'.format('true' if kubevirt_installed else 'false'),
-    ]
+    values=['infra/helm/values-tilt.yaml'],
+    set=all_set_values
 ))
 
 # Configure individual k8s resources
@@ -173,17 +205,12 @@ k8s_resource(
 
 k8s_resource(
     'legacy-use-mgmt',
-    port_forwards=[
-        '8088:8088',  # Backend API
-        '5173:5173',  # Frontend
-    ],
     labels=['core'],
     resource_deps=['legacy-use-database']
 )
 
 k8s_resource(
     'legacy-use-mcp-server',
-    port_forwards='5174:3000',
     labels=['core'],
     resource_deps=['legacy-use-android-target']  # Start after all container targets
 )
@@ -208,9 +235,16 @@ k8s_resource(
 
 k8s_resource(
     'legacy-use-novnc-proxy',
-    port_forwards='8090:80',  # noVNC proxy
     labels=['core'],
     resource_deps=['legacy-use-mgmt']
+)
+
+# Nginx reverse proxy - single entry point
+k8s_resource(
+    'legacy-use-nginx',
+    port_forwards='0.0.0.0:8080:80',  # All traffic goes through Nginx (8080->80 to avoid privilege issues)
+    labels=['core'],
+    resource_deps=['legacy-use-mgmt', 'legacy-use-mcp-server', 'legacy-use-novnc-proxy']
 )
 
 # Windows KubeVirt resources
@@ -375,23 +409,23 @@ print("""
 Legacy-use Development Environment
 ==================================
 
-Services will be available at:
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8088
-- MCP Server: http://localhost:5174/mcp
-- noVNC Proxy: http://localhost:8090
+All services are available through a single port:
+- Web Interface: http://localhost:8080/
+- API Endpoints: http://localhost:8080/api/
+- MCP Server: http://localhost:8080/mcp/
+- VNC Sessions: Accessed through the web interface
 
 Container Targets:
-- Wine Target: Access via Management UI or noVNC proxy (http://localhost:8090)
-- Linux Target: Access via Management UI or noVNC proxy (http://localhost:8090)
-- Android Target: Access via Management UI or noVNC proxy (http://localhost:8090)""")
+- Wine Target: Access via Management UI
+- Linux Target: Access via Management UI
+- Android Target: Access via Management UI""")
 
 if kubevirt_installed:
     print("""
 Windows & macOS KubeVirt Targets (KubeVirt detected):
-- Windows XP VM: Access via Management UI or noVNC proxy (http://localhost:8090)
-- Windows 10 VM: Access via Management UI or noVNC proxy (http://localhost:8090)
-- macOS Mojave VM: Access via Management UI or noVNC proxy (http://localhost:8090)
+- Windows XP VM: Access via Management UI
+- Windows 10 VM: Access via Management UI
+- macOS Mojave VM: Access via Management UI
   
 Note: VMs start with staggered timing to reduce resource spikes
   - Windows XP (1GB) → 30s → Windows 10 (2GB) → 30s → macOS Mojave (4GB)

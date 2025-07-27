@@ -34,9 +34,15 @@ database:
     pullPolicy: IfNotPresent
     tag: "15-alpine"
   
+  # Database credentials - should be overridden via secrets in production
+  # These defaults are only for local development
   postgresUser: postgres
   postgresPassword: postgres
   postgresDatabase: legacy_use_demo
+  
+  # Use existing secret for database credentials
+  # If set, the secret must contain: postgres-password, postgres-user, postgres-database
+  existingSecret: ""
   
   service:
     type: ClusterIP
@@ -186,6 +192,36 @@ mcpServer:
   securityContext:
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: false
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Nginx Reverse Proxy Configuration
+nginx:
+  enabled: true
+  replicaCount: 1
+  
+  image:
+    repository: legacy-use-nginx
+    pullPolicy: IfNotPresent
+    tag: "local"
+  
+  service:
+    type: ClusterIP
+    port: 80
+  
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 64Mi
+  
+  podSecurityContext: {}
+  
+  securityContext: {}
   
   nodeSelector: {}
   tolerations: []
