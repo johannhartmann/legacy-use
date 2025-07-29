@@ -34,6 +34,15 @@ install:
 install-dev:
 	uv sync --dev
 
+.PHONY: server-tests
+server-tests:
+	uv run pytest
+
+.PHONY: setup
+setup:
+	touch .env.local
+	uv run python generate_api_key.py
+
 .PHONY: format
 format:
 	@echo "Running black formatter..."
