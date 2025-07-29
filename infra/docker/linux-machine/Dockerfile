@@ -12,7 +12,7 @@ RUN apt-get update && \
         openssh-server pwgen sudo vim-tiny \
         net-tools \
         # Desktop environment
-        lxde x11vnc xvfb \
+        lxde tigervnc-standalone-server tigervnc-common \
         openbox lxpanel pcmanfm \
         gtk2-engines-murrine fonts-ubuntu fonts-ubuntu-console \
         # Python for web interface

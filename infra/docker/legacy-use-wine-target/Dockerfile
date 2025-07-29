@@ -17,7 +17,7 @@ RUN dpkg --add-architecture i386 && \
     # Essential tools
     wget curl ca-certificates lsb-release gnupg2 software-properties-common bzip2 \
     # VNC and desktop
-    xvfb x11vnc fluxbox xterm \
+    tigervnc-standalone-server tigervnc-common fluxbox xterm \
     # Process management
     supervisor \
     # Additional libraries that applications might need
