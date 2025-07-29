@@ -93,8 +93,12 @@ class ContainerPool:
                     container_type = 'wine'
                 elif 'linux-target' in container.name or 'linux-machine' in container.name:
                     container_type = 'linux'
+                elif 'android-aind-target' in container.name:
+                    container_type = 'android-aind'
                 elif 'android-target' in container.name:
                     container_type = 'android'
+                elif 'dosbox-target' in container.name:
+                    container_type = 'dosbox'
                 elif 'windows' in container.name:
                     container_type = 'windows-vm'
             
@@ -150,8 +154,12 @@ class ContainerPool:
                         container_type = 'wine'
                     elif 'linux-target' in container.name or 'linux-machine' in container.name:
                         container_type = 'linux'
+                    elif 'android-aind-target' in container.name:
+                        container_type = 'android-aind'
                     elif 'android-target' in container.name:
                         container_type = 'android'
+                    elif 'dosbox-target' in container.name:
+                        container_type = 'dosbox'
                     elif 'windows-xp' in container.name:
                         container_type = 'windows-xp-vm'
                     elif 'windows' in container.name:
