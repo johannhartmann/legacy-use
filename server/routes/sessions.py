@@ -175,8 +175,20 @@ async def create_session(
                     novnc_port = '6080'
             
             # Update session with container info
-            # Use container name as IP since containers can reach each other by name
-            container_ip = container_info.ip or container_info.name
+            # For Kubernetes, use service hostname instead of pod IP
+            if pool_target_type in ['linux', 'wine', 'android', 'dosbox', 'android-aind']:
+                # Map target types to service names
+                service_mapping = {
+                    'linux': 'legacy-use-linux-target',
+                    'wine': 'legacy-use-wine-target', 
+                    'android': 'legacy-use-android-target',
+                    'dosbox': 'legacy-use-dosbox-target',
+                    'android-aind': 'legacy-use-android-aind-target'
+                }
+                container_ip = service_mapping.get(pool_target_type, container_info.name)
+            else:
+                # For VMs or other types, use the provided IP
+                container_ip = container_info.ip or container_info.name
             db.update_session(
                 db_session['id'],
                 {
@@ -382,6 +394,11 @@ async def execute_api_on_session(
         ) from e
 
 
+# VNC routes have been moved to the dedicated VNC router at /vnc/{session_id}/*
+# See server/routes/vnc.py for the implementation
+
+'''
+# OLD VNC ROUTE - MOVED TO VNC ROUTER
 @session_router.get('/{session_id}/vnc/{path:path}', include_in_schema=True)
 async def proxy_vnc(session_id: UUID, path: str, request: Request):
     """
@@ -463,9 +480,11 @@ async def proxy_vnc(session_id: UUID, path: str, request: Request):
         raise HTTPException(
             status_code=502, detail=f'Error proxying VNC request: {str(e)}'
         ) from e
+'''
 
-
-# Move the WebSocket endpoint to the websocket_router
+# WebSocket VNC route also moved to VNC router
+'''
+# OLD WEBSOCKET ROUTE - MOVED TO VNC ROUTER  
 @websocket_router.websocket('/{session_id}/vnc/websockify')
 async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
     """
@@ -662,6 +681,7 @@ async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
         except Exception as e:
             # Log but don't raise the error since this is cleanup code
             logger.debug(f'[VNC-WS] Error closing WebSocket in cleanup: {str(e)}')
+'''
 
 
 # Add endpoint to check container pool status (for debugging)

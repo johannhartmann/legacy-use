@@ -117,6 +117,18 @@ android_image = docker_build_local(
     'infra/docker/legacy-use-android-target/Dockerfile'
 )
 
+android_aind_image = docker_build_local(
+    'legacy-use-android-aind-target',
+    '.',
+    'infra/docker/legacy-use-android-aind-target/Dockerfile'
+)
+
+dosbox_image = docker_build_local(
+    'legacy-use-dosbox-target',
+    '.',
+    'infra/docker/legacy-use-dosbox-target/Dockerfile'
+)
+
 novnc_proxy_image = docker_build_local(
     'legacy-use-novnc-proxy',
     'infra/docker/legacy-use-novnc-proxy',
@@ -212,17 +224,19 @@ k8s_resource(
 k8s_resource(
     'legacy-use-mcp-server',
     labels=['core'],
-    resource_deps=['legacy-use-android-target']  # Start after all container targets
+    resource_deps=['legacy-use-dosbox-target']  # Start after all container targets
 )
 
 k8s_resource(
     'legacy-use-wine-target',
+    port_forwards='0.0.0.0:5910:5900',  # Direct VNC access for debugging
     labels=['targets'],
     resource_deps=['legacy-use-mgmt', 'legacy-use-database']
 )
 
 k8s_resource(
     'legacy-use-linux-target',
+    port_forwards='0.0.0.0:5911:5900',  # Direct VNC access for debugging
     labels=['targets'],
     resource_deps=['legacy-use-wine-target']  # Start after Wine target
 )
@@ -231,6 +245,19 @@ k8s_resource(
     'legacy-use-android-target',
     labels=['targets'],
     resource_deps=['legacy-use-linux-target']  # Start after Linux target
+)
+
+k8s_resource(
+    'legacy-use-android-aind-target',
+    labels=['targets'],
+    resource_deps=['legacy-use-android-target']  # Start after Android emulator target
+)
+
+k8s_resource(
+    'legacy-use-dosbox-target',
+    port_forwards='0.0.0.0:5912:5901',  # Direct VNC access for debugging (DOSBox uses 5901)
+    labels=['targets'],
+    resource_deps=['legacy-use-android-aind-target']  # Start after Android AinD target
 )
 
 k8s_resource(
@@ -418,7 +445,9 @@ All services are available through a single port:
 Container Targets:
 - Wine Target: Access via Management UI
 - Linux Target: Access via Management UI
-- Android Target: Access via Management UI""")
+- Android Target: Access via Management UI
+- Android AinD Target: Native VNC on port 5900
+- DOSBox Target: Native VNC on port 5900""")
 
 if kubevirt_installed:
     print("""

@@ -559,6 +559,91 @@ podDisruptionBudget:
   minAvailable: 1
   # maxUnavailable: 1
 
+# DOSBox Target Configuration
+dosboxTarget:
+  enabled: true
+  replicas: 1
+  
+  image:
+    repository: legacy-use-dosbox-target
+    pullPolicy: IfNotPresent
+    tag: "local"
+  
+  labels:
+    legacy-use.target-type: "dosbox"
+    legacy-use.scalable: "true"
+  
+  # VNC configuration
+  vncGeometry: "1024x768"
+  vncDepth: "16"
+  
+  service:
+    type: ClusterIP
+    vncPort: 5901
+  
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 5Gi
+  
+  resources:
+    limits:
+      cpu: 1
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  
+  podSecurityContext: {}
+  securityContext: {}
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Android AinD Target Configuration (Android in Docker with native VNC)
+androidAindTarget:
+  enabled: true
+  replicas: 1
+  
+  image:
+    repository: legacy-use-android-aind-target
+    pullPolicy: IfNotPresent
+    tag: "local"
+  
+  labels:
+    legacy-use.target-type: "android-aind"
+    legacy-use.scalable: "true"
+  
+  service:
+    type: ClusterIP
+    vncPort: 5900
+  
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 10Gi
+  
+  resources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 1
+      memory: 1Gi
+  
+  podSecurityContext:
+    privileged: true
+  
+  securityContext:
+    privileged: true
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # Network policies
 networkPolicy:
   enabled: false
