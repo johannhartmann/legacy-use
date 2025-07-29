@@ -10,7 +10,7 @@ spec:
   type: {{ .Values.mcpServer.service.type }}
   ports:
     - port: {{ .Values.mcpServer.service.port }}
-      targetPort: mcp
+      targetPort: http
       protocol: TCP
       name: mcp
   selector:

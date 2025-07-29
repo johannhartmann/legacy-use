@@ -31,7 +31,12 @@ management:
 # Database configuration for production
 database:
   enabled: true
-  postgresPassword: "changeme"  # Override with secure password
+  # IMPORTANT: Use existingSecret in production!
+  # Create secret with: kubectl create secret generic legacy-use-database-secret \
+  #   --from-literal=postgres-password=<secure-password> \
+  #   --from-literal=postgres-user=postgres \
+  #   --from-literal=postgres-database=legacy_use_demo
+  existingSecret: "legacy-use-database-secret"
   persistence:
     enabled: true
     storageClass: "fast-ssd"
