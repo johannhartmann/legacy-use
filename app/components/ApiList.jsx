@@ -98,7 +98,7 @@ const ApiList = () => {
     }).replace(/'/g, "'\\''"); // Escape single quotes for shell command
 
     // Build cURL command
-    const curlCmd = `curl -X POST "${apiUrl}/targets/${selectedTarget}/jobs/" \\
+    const curlCmd = `curl -X POST "${apiUrl}/api/targets/${selectedTarget}/jobs/" \\
   -H "Content-Type: application/json" \\
   -H "X-API-Key: ${apiKey}" \\
   -d '${jsonData}'`;
