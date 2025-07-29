@@ -1,0 +1,42 @@
+# Values for Android AinD development
+# This file overrides the default values.yaml
+androidAindTarget:
+  enabled: true
+  replicas: 1
+  
+  image:
+    repository: legacy-use-android-aind-target
+    pullPolicy: IfNotPresent
+    tag: "local"
+  
+  labels:
+    legacy-use.target-type: "android-aind"
+    legacy-use.scalable: "true"
+  
+  service:
+    type: ClusterIP
+    vncPort: 5900
+  
+  persistence:
+    enabled: false  # Disable for development
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 10Gi
+  
+  resources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 1
+      memory: 1Gi
+  
+  podSecurityContext:
+    privileged: true
+  
+  securityContext:
+    privileged: true
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

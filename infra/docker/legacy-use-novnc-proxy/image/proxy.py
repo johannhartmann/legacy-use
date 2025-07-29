@@ -48,7 +48,7 @@ class VNCProxy:
                 self.k8s_custom = None
         
     async def handle_websocket(self, request):
-        """Handle incoming WebSocket connections by proxying directly."""
+        """Handle incoming WebSocket connections by using websockify for protocol translation."""
         # Get target information from headers (passed by nginx)
         session_id = request.headers.get('X-Session-Id')
         target_host = request.headers.get('X-Target-Host')
@@ -66,47 +66,102 @@ class VNCProxy:
             # Handle KubeVirt VM VNC connection
             return await self.handle_kubevirt_vnc(request, session_id, vmi_name or target_host)
             
-        # Start websockify as a subprocess that will handle the WebSocket connection
+        # For regular VNC servers, we MUST use websockify to translate between WebSocket and VNC protocol
+        # Start websockify as a subprocess
         websockify_port = await self.start_websockify(session_id, target_host, target_port)
         
-        if websockify_port:
-            # Proxy the WebSocket connection to websockify
+        if not websockify_port:
             ws = web.WebSocketResponse()
             await ws.prepare(request)
+            await ws.close(code=1011, message=b'Failed to start websockify')
+            return ws
+        
+        # Now proxy the WebSocket connection to websockify
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+        
+        try:
+            # Connect to local websockify
+            import websockets
+            websockify_url = f'ws://localhost:{websockify_port}/'
+            logger.info(f"Connecting to local websockify at {websockify_url}")
             
-            try:
-                import websockets
-                # Connect to the local websockify instance
-                async with websockets.connect(f'ws://localhost:{websockify_port}/') as websockify:
-                    # Create tasks for bidirectional proxying
-                    async def forward_to_websockify():
+            async with websockets.connect(websockify_url) as websockify:
+                logger.info(f"Connected to websockify for session {session_id}")
+                
+                # Check if websockify has any initial data (like VNC handshake)
+                try:
+                    # Set a short timeout to check for immediate data
+                    import asyncio
+                    initial_data = await asyncio.wait_for(websockify.recv(), timeout=0.1)
+                    if initial_data:
+                        logger.info(f"Received initial data from websockify: {len(initial_data)} bytes")
+                        if isinstance(initial_data, bytes):
+                            logger.debug(f"Initial data (hex): {initial_data[:20].hex()}")
+                            await ws.send_bytes(initial_data)
+                        else:
+                            await ws.send_str(initial_data)
+                except asyncio.TimeoutError:
+                    logger.debug("No initial data from websockify")
+                except Exception as e:
+                    logger.error(f"Error checking initial data: {e}")
+                
+                # Bidirectional proxy
+                async def forward_to_websockify():
+                    try:
+                        logger.info(f"Starting forward_to_websockify for session {session_id}")
+                        msg_count = 0
                         async for msg in ws:
+                            msg_count += 1
                             if msg.type == web.WSMsgType.BINARY:
+                                logger.info(f"Received binary message #{msg_count} from client: {len(msg.data)} bytes")
+                                logger.debug(f"First 20 bytes: {msg.data[:20].hex()}")
                                 await websockify.send(msg.data)
+                                logger.debug(f"Forwarded to websockify")
                             elif msg.type == web.WSMsgType.TEXT:
+                                logger.info(f"Received text message #{msg_count} from client: {len(msg.data)} chars")
                                 await websockify.send(msg.data)
                             elif msg.type == web.WSMsgType.ERROR:
                                 logger.error(f'WebSocket error: {ws.exception()}')
                                 break
-                    
-                    async def forward_from_websockify():
+                        logger.info(f"Client connection closed after {msg_count} messages")
+                    except Exception as e:
+                        logger.error(f"Error forwarding to websockify: {e}")
+                
+                async def forward_from_websockify():
+                    try:
+                        logger.info(f"Starting forward_from_websockify for session {session_id}")
+                        msg_count = 0
                         async for msg in websockify:
+                            msg_count += 1
                             if isinstance(msg, bytes):
+                                logger.info(f"Received binary message #{msg_count} from websockify: {len(msg)} bytes")
+                                logger.debug(f"First 20 bytes: {msg[:20].hex()}")
                                 await ws.send_bytes(msg)
+                                logger.debug(f"Forwarded to client")
                             else:
+                                logger.info(f"Received text message #{msg_count} from websockify: {len(msg)} chars")
                                 await ws.send_str(msg)
-                    
-                    # Run both tasks concurrently
-                    await asyncio.gather(forward_to_websockify(), forward_from_websockify())
-                    
-            except Exception as e:
-                logger.error(f"WebSocket proxy error: {e}")
-            finally:
-                await ws.close()
+                        logger.info(f"Websockify connection closed after {msg_count} messages")
+                    except Exception as e:
+                        logger.error(f"Error forwarding from websockify: {e}")
+                
+                # Run both tasks
+                await asyncio.gather(forward_to_websockify(), forward_from_websockify())
+                
+        except Exception as e:
+            logger.error(f"WebSocket proxy error: {e}")
+        finally:
+            # Clean up websockify process
+            if session_id in self.websockify_processes:
+                logger.info(f"Terminating websockify process for session {session_id}")
+                self.websockify_processes[session_id]['process'].terminate()
+                del self.websockify_processes[session_id]
             
-            return ws
-        else:
-            return web.Response(status=500, text='Failed to start websockify')
+            if not ws.closed:
+                await ws.close()
+        
+        return ws
     
     async def start_websockify(self, session_id, target_host, target_port):
         """Start a websockify process for the given target."""
@@ -127,12 +182,25 @@ class VNCProxy:
             ]
             
             logger.info(f"Starting websockify: {' '.join(cmd)}")
-            process = subprocess.Popen(cmd)
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             
             self.websockify_processes[session_id] = {
                 'process': process,
                 'port': port
             }
+            
+            # Start a thread to log websockify output (can't use async with subprocess pipe)
+            import threading
+            def log_websockify_output():
+                try:
+                    for line in iter(process.stdout.readline, ''):
+                        if line:
+                            logger.info(f"[websockify-{port}] {line.strip()}")
+                except Exception as e:
+                    logger.error(f"Error reading websockify output: {e}")
+            
+            log_thread = threading.Thread(target=log_websockify_output, daemon=True)
+            log_thread.start()
             
             # Give it a moment to start and verify it's listening
             for retry in range(10):  # Try for up to 5 seconds
@@ -144,9 +212,13 @@ class VNCProxy:
                     await test_conn[1].wait_closed()
                     logger.info(f"Websockify is ready on port {port}")
                     break
-                except Exception:
+                except Exception as e:
+                    logger.debug(f"Websockify not ready yet (attempt {retry+1}/10): {e}")
                     if retry == 9:
                         logger.error(f"Websockify failed to start on port {port} after 5 seconds")
+                        # Check if process is still running
+                        if process.poll() is not None:
+                            logger.error(f"Websockify process exited with code: {process.returncode}")
                         return None
                     continue
             
