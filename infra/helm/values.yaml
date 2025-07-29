@@ -523,6 +523,14 @@ macosMojaveKubevirt:
   # Custom virt-launcher image with Apple SMC support
   launcherImage: "localhost:5000/virt-launcher-macos:local"
   
+  # OVMF firmware images
+  ovmfCode:
+    image: "docker.io/johannhartmann/macos-ovmf-code:latest"
+  ovmfVars:
+    image: "docker.io/johannhartmann/macos-ovmf-vars:latest"
+  openCore:
+    image: "docker.io/johannhartmann/macos-opencore:latest"
+  
   # Disk configuration
   disk:
     size: "64Gi"
