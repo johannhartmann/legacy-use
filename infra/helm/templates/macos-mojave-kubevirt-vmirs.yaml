@@ -40,7 +40,7 @@ spec:
           disks:
           - name: ovmf-code
             disk:
-              bus: sata
+              bus: virtio
               readonly: true
           - name: ovmf-vars
             disk:
@@ -64,14 +64,15 @@ spec:
           rng: {}
         features:
           smm:
-            enabled: false
+            enabled: true
           hyperv:
             spinlocks:
               enabled: true
               spinlocks: 8191
         firmware:
           bootloader:
-            efi: {}
+            efi:
+              secureBoot: false
         machine:
           type: pc-q35-rhel8.6.0
         qemuGuestAgent:
