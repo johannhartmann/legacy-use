@@ -4,7 +4,8 @@
 FROM budtmo/docker-android:emulator_11.0
 
 # Set environment variables for consistent emulator configuration
-ENV EMULATOR_DEVICE="Samsung Galaxy S10"
+# Use Nexus 7 (2012) which has 800x1280 resolution - exactly our target when in portrait
+ENV EMULATOR_DEVICE="Nexus 7 2012"
 ENV WEB_VNC=true
 ENV DATAPARTITION=2g
 ENV EMULATOR_NO_BOOT_ANIM=1

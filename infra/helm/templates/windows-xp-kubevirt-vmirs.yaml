@@ -75,6 +75,9 @@ spec:
           - type: vnc
             listen:
               type: socket
+          video:
+          - model: vga
+            videoRAM: 16384
         resources:
           requests:
             memory: {{ .Values.windowsXpKubevirt.memory }}
