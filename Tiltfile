@@ -123,6 +123,13 @@ android_aind_image = docker_build_local(
     'infra/docker/legacy-use-android-aind-target/Dockerfile'
 )
 
+# Custom virt-launcher for macOS support
+virt_launcher_macos_image = docker_build_local(
+    'virt-launcher-macos',
+    '.',
+    'infra/docker/virt-launcher-macos/Dockerfile'
+)
+
 dosbox_image = docker_build_local(
     'legacy-use-dosbox-target',
     '.',

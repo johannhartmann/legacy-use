@@ -520,6 +520,9 @@ macosMojaveKubevirt:
     image: "registry.git.mayflower.de/legacy-use/legacy-use/legacy-use-macos-mojave-containerdisk:latest"
     pullPolicy: "IfNotPresent"
   
+  # Custom virt-launcher image with Apple SMC support
+  launcherImage: "localhost:5000/virt-launcher-macos:local"
+  
   # Disk configuration
   disk:
     size: "64Gi"

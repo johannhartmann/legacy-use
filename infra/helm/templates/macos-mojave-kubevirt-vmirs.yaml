@@ -22,9 +22,10 @@ spec:
         {{- end }}
       annotations:
         # NOTE: macOS VMs require Apple SMC device which is not supported by KubeVirt
-        # The VM will not boot without: -device isa-applesmc,osk=ourhardworkbythesewordsguardedpleasedontsteal(c)AppleComputerInc
-        # Consider using QEMU directly or a custom hook for macOS support
+        # Using custom virt-launcher image to add: -device isa-applesmc,osk=ourhardworkbythesewordsguardedpleasedontsteal(c)AppleComputerInc
         legacy-use.io/requires-smc: "true"
+        # Use custom virt-launcher image with macOS support
+        kubevirt.io/launcher-image: "{{ .Values.macosMojaveKubevirt.launcherImage | default "localhost:5000/virt-launcher-macos:local" }}"
     spec:
       domain:
         cpu:
