@@ -382,7 +382,25 @@ async def execute_api_on_session(
 
     # Forward request to container
     try:
-        container_url = f'http://{session["container_ip"]}:8088/api/execute'
+        # Get target host - use service name for Kubernetes
+        target_host = session['container_ip']
+        if target_host and target_host.startswith('10.244.'):  # Pod IP range
+            # Get target type from session
+            target = db.get_target(session.get('target_id'))
+            if target:
+                target_type = target.get('type')
+                # Map to service names
+                service_mapping = {
+                    'linux': 'legacy-use-linux-target',
+                    'wine': 'legacy-use-wine-target', 
+                    'android': 'legacy-use-android-target',
+                    'dosbox': 'legacy-use-dosbox-target',
+                    'android-aind': 'legacy-use-android-aind-target'
+                }
+                if target_type in service_mapping:
+                    target_host = service_mapping[target_type]
+        
+        container_url = f'http://{target_host}:8088/api/execute'
         response = requests.post(container_url, json=api_request, timeout=30)
 
         # Return response from container
@@ -519,7 +537,27 @@ async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
     container_ip = session.get('container_ip')
     vnc_port = session.get('vnc_port', '5900')  # Default VNC port
     container_id = session.get('container_id')
-    logger.info(f'[VNC-WS] Session details: container_ip={container_ip}, vnc_port={vnc_port}, container_id={container_id}')
+    
+    # For Kubernetes deployments, translate pod IPs to service names
+    target_host = container_ip
+    if container_ip and container_ip.startswith('10.244.'):  # Pod IP range
+        # Get target type from session
+        target = db.get_target(session.get('target_id'))
+        if target:
+            target_type = target.get('type')
+            # Map to service names
+            service_mapping = {
+                'linux': 'legacy-use-linux-target',
+                'wine': 'legacy-use-wine-target', 
+                'android': 'legacy-use-android-target',
+                'dosbox': 'legacy-use-dosbox-target',
+                'android-aind': 'legacy-use-android-aind-target'
+            }
+            if target_type in service_mapping:
+                target_host = service_mapping[target_type]
+                logger.info(f'[VNC-WS] Translated pod IP {container_ip} to service {target_host} for {target_type} target')
+    
+    logger.info(f'[VNC-WS] Session details: target_host={target_host}, vnc_port={vnc_port}, container_id={container_id}')
     
     # Connect to shared noVNC proxy WebSocket with target information in headers
     novnc_proxy_host = os.getenv('NOVNC_PROXY_HOST', 'novnc-proxy')
@@ -568,7 +606,7 @@ async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
         # Connect to the shared noVNC proxy with target information in headers
         headers = {
             'X-Session-Id': str(session_id),
-            'X-Target-Host': container_ip,
+            'X-Target-Host': target_host,
             'X-Target-Port': vnc_port
         }
         

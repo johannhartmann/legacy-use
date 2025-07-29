@@ -151,7 +151,25 @@ async def monitor_session_states():
 
                 # If session is initializing and container is running, check health
                 if current_state == 'initializing' and is_running:
-                    health_status = await check_target_container_health(container_ip)
+                    # For Kubernetes deployments, translate pod IPs to service names
+                    target_host = container_ip
+                    if container_ip and container_ip.startswith('10.244.'):  # Pod IP range
+                        # Get target type from session
+                        target = db.get_target(session.get('target_id'))
+                        if target:
+                            target_type = target.get('type')
+                            # Map to service names
+                            service_mapping = {
+                                'linux': 'legacy-use-linux-target',
+                                'wine': 'legacy-use-wine-target', 
+                                'android': 'legacy-use-android-target',
+                                'dosbox': 'legacy-use-dosbox-target',
+                                'android-aind': 'legacy-use-android-aind-target'
+                            }
+                            if target_type in service_mapping:
+                                target_host = service_mapping[target_type]
+                    
+                    health_status = await check_target_container_health(target_host)
                     if health_status['healthy']:
                         logger.info(
                             f"API for session {session_id} is ready, updating state to 'ready'"

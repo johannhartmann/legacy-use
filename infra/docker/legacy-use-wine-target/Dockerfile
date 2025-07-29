@@ -17,7 +17,7 @@ RUN dpkg --add-architecture i386 && \
     # Essential tools
     wget curl ca-certificates lsb-release gnupg2 software-properties-common bzip2 \
     # VNC and desktop
-    tightvncserver fluxbox xterm \
+    xvfb x11vnc fluxbox xterm \
     # Process management
     supervisor \
     # Additional libraries that applications might need
@@ -39,8 +39,8 @@ RUN useradd -m -s /bin/bash wineuser && \
     chown -R wineuser:wineuser /home/wineuser
 
 # Simple supervisor config (removed noVNC - now using shared proxy)
-# TightVNC with no password - using -SecurityTypes None
-RUN printf '[supervisord]\nnodaemon=true\nuser=root\n\n[program:tightvnc]\ncommand=/usr/bin/Xtightvnc :1 -geometry 1920x1080 -depth 24 -rfbport 5900 -SecurityTypes None\nautorestart=true\nuser=wineuser\npriority=100\n\n[program:fluxbox]\ncommand=/usr/bin/fluxbox -display :1\nautorestart=true\nuser=wineuser\nenvironment=HOME="/home/wineuser",DISPLAY=":1"\npriority=400\n' > /etc/supervisor/conf.d/supervisord.conf
+# VNC without password - removed -usepw and -rfbauth flags
+RUN printf '[supervisord]\nnodaemon=true\nuser=root\n\n[program:xvfb]\ncommand=/usr/bin/Xvfb :1 -screen 0 1920x1080x24\nautorestart=true\nuser=root\npriority=100\n\n[program:x11vnc]\ncommand=/usr/bin/x11vnc -display :1 -forever -shared -rfbport 5900 -noshm\nautorestart=true\nuser=wineuser\npriority=200\n\n[program:fluxbox]\ncommand=/usr/bin/fluxbox -display :1\nautorestart=true\nuser=wineuser\nenvironment=HOME="/home/wineuser",DISPLAY=":1"\npriority=400\n' > /etc/supervisor/conf.d/supervisord.conf
 
 # Setup Wine environment
 USER wineuser
@@ -58,14 +58,87 @@ RUN cd /home/wineuser && \
     rm demo.tar.bz2 && \
     chown -R wineuser:wineuser /home/wineuser/lotus
 
-# Create desktop directory and copy desktop files
+# Create startup script  
 USER root
-RUN mkdir -p /home/wineuser/Desktop
-COPY infra/docker/legacy-use-wine-target/*.desktop /home/wineuser/Desktop/
-RUN chmod +x /home/wineuser/Desktop/*.desktop && \
-    chown -R wineuser:wineuser /home/wineuser/Desktop
+RUN cat > /startup.sh << 'EOF'
+#!/bin/bash
+set -e
+echo "Starting Wine container..."
+
+# Create Desktop directory first
+su - wineuser -c "mkdir -p /home/wineuser/Desktop"
+
+# Fix ownership of .wine32 directory if it exists
+chown -R wineuser:wineuser /home/wineuser/.wine32 2>/dev/null || true
+
+# Initialize Wine32 at runtime
+su - wineuser -c "WINEARCH=win32 WINEPREFIX=/home/wineuser/.wine32 wine wineboot --init 2>/dev/null || true" &
+
+# Wait for Wine initialization
+sleep 10
+
+# Start Wine Explorer in background
+su - wineuser -c "DISPLAY=:1 WINEPREFIX=/home/wineuser/.wine32 wine explorer /desktop=shell,1920x1080 2>/dev/null" &
+
+# Create desktop shortcut for Lotus installer
+su - wineuser -c 'cat > /home/wineuser/Desktop/Install_Lotus.desktop << EOD
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Install Lotus Demo
+Exec=env WINEPREFIX=/home/wineuser/.wine32 wine /home/wineuser/lotus/install.exe
+Icon=system-software-install
+Terminal=false
+Categories=System;
+EOD
+chmod +x /home/wineuser/Desktop/Install_Lotus.desktop' || true
+
+# Create desktop shortcut for TurboCASH installer
+su - wineuser -c 'cat > /home/wineuser/Desktop/Install_TurboCASH.desktop << EOD
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Install TurboCASH
+Exec=env WINEPREFIX=/home/wineuser/.wine32 wine /home/wineuser/TurboCASH_Setup.exe
+Icon=system-software-install
+Terminal=false
+Categories=System;
+EOD
+chmod +x /home/wineuser/Desktop/Install_TurboCASH.desktop' || true
+
+# Create xterm launcher
+su - wineuser -c 'cat > /home/wineuser/Desktop/Terminal.desktop << EOD
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Terminal
+Exec=xterm
+Icon=utilities-terminal
+Terminal=false
+Categories=System;
+EOD
+chmod +x /home/wineuser/Desktop/Terminal.desktop' || true
+
+# Create file manager launcher  
+su - wineuser -c 'cat > /home/wineuser/Desktop/FileManager.desktop << EOD
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Wine Explorer
+Exec=env WINEPREFIX=/home/wineuser/.wine32 wine explorer
+Icon=folder
+Terminal=false
+Categories=System;
+EOD
+chmod +x /home/wineuser/Desktop/FileManager.desktop' || true
+
+# Start supervisor
+exec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
+EOF
+
+RUN chmod +x /startup.sh
 
 EXPOSE 5900
 VOLUME /home/wineuser/.wine32
 
-CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
+ENTRYPOINT ["/startup.sh"]

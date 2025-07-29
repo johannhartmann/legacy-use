@@ -106,8 +106,27 @@ class BaseComputerTool(BaseAnthropicTool):
         if not container_ip:
             raise ToolError(f'Container IP not found for session {session_id}')
 
-        # Construct the API URL using container IP and the standard port (8088)
-        api_url = f'http://{container_ip}:8088/tool_use/{action}'
+        # For Kubernetes deployments, translate pod IPs to service names
+        target_host = container_ip
+        if container_ip.startswith('10.244.'):  # Pod IP range
+            # Get target type from session
+            from server.database import db
+            target = db.get_target(session.get('target_id'))
+            if target:
+                target_type = target.get('type')
+                # Map to service names
+                service_mapping = {
+                    'linux': 'legacy-use-linux-target',
+                    'wine': 'legacy-use-wine-target', 
+                    'android': 'legacy-use-android-target',
+                    'dosbox': 'legacy-use-dosbox-target',
+                    'android-aind': 'legacy-use-android-aind-target'
+                }
+                if target_type in service_mapping:
+                    target_host = service_mapping[target_type]
+
+        # Construct the API URL using target host and the standard port (8088)
+        api_url = f'http://{target_host}:8088/tool_use/{action}'
 
         # Create an HTTP client with a longer timeout
         timeout = httpx.Timeout(60.0, connect=10.0)
