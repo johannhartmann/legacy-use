@@ -1,0 +1,20 @@
+{{- if .Values.dosboxTarget.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-dosbox-target
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dosbox-target
+spec:
+  type: {{ .Values.dosboxTarget.service.type }}
+  ports:
+    - port: {{ .Values.dosboxTarget.service.vncPort }}
+      targetPort: vnc
+      protocol: TCP
+      name: vnc
+  selector:
+    app.kubernetes.io/name: {{ include "legacy-use.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: dosbox-target
+{{- end }}

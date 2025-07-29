@@ -1,0 +1,18 @@
+{{- if and .Values.dosboxTarget.enabled .Values.dosboxTarget.persistence.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-dosbox-config
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dosbox-target
+spec:
+  accessModes:
+    - {{ .Values.dosboxTarget.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.dosboxTarget.persistence.size }}
+  {{- if .Values.dosboxTarget.persistence.storageClass }}
+  storageClassName: {{ .Values.dosboxTarget.persistence.storageClass }}
+  {{- end }}
+{{- end }}

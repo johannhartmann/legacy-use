@@ -255,7 +255,7 @@ k8s_resource(
 
 k8s_resource(
     'legacy-use-dosbox-target',
-    port_forwards='0.0.0.0:5912:5901',  # Direct VNC access for debugging (DOSBox uses 5901)
+    port_forwards='0.0.0.0:5912:5900',  # Direct VNC access for debugging
     labels=['targets'],
     resource_deps=['legacy-use-android-aind-target']  # Start after Android AinD target
 )

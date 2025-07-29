@@ -579,7 +579,7 @@ dosboxTarget:
   
   service:
     type: ClusterIP
-    vncPort: 5901
+    vncPort: 5900
   
   persistence:
     enabled: true
