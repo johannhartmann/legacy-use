@@ -1,0 +1,54 @@
+{{- if .Values.macosMojaveKubevirt.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-macos-hook
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: macos-mojave-kubevirt
+data:
+  # KubeVirt sidecar hook to add Apple SMC device
+  # This hook should be mounted at /usr/bin/qemu-hook and made executable
+  qemu-hook.sh: |
+    #!/bin/bash
+    # Hook script to add Apple SMC device to macOS VMs
+    
+    # Check if this is a macOS VM by looking for the annotation
+    if [[ "$1" == *"legacy-use.io/requires-smc=true"* ]]; then
+      # Add Apple SMC device to QEMU command line
+      echo "-device isa-applesmc,osk=ourhardworkbythesewordsguardedpleasedontsteal(c)AppleComputerInc"
+    fi
+    
+    # Pass through all original arguments
+    exec "$@"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-macos-sidecar
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: macos-mojave-kubevirt
+data:
+  # Instructions for enabling macOS support
+  README.md: |
+    # macOS on KubeVirt
+    
+    KubeVirt does not natively support the Apple SMC device required for macOS.
+    
+    ## Option 1: Use KubeVirt Hooks (Recommended)
+    
+    Deploy a mutating webhook or sidecar that intercepts QEMU launch and adds:
+    ```
+    -device isa-applesmc,osk=ourhardworkbythesewordsguardedpleasedontsteal(c)AppleComputerInc
+    ```
+    
+    ## Option 2: Use Plain QEMU Pod
+    
+    Create a pod that runs QEMU directly with all required macOS flags.
+    See the working configuration in macos-mojave.sh for reference.
+    
+    ## Option 3: Custom KubeVirt Build
+    
+    Build KubeVirt with patches to support Apple SMC device.
+{{- end }}

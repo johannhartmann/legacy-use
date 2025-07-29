@@ -20,34 +20,97 @@ spec:
         {{- with .Values.macosMojaveKubevirt.labels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+      annotations:
+        # NOTE: macOS VMs require Apple SMC device which is not supported by KubeVirt
+        # The VM will not boot without: -device isa-applesmc,osk=ourhardworkbythesewordsguardedpleasedontsteal(c)AppleComputerInc
+        # Consider using QEMU directly or a custom hook for macOS support
+        legacy-use.io/requires-smc: "true"
     spec:
       domain:
         cpu:
           cores: {{ .Values.macosMojaveKubevirt.cpu.cores }}
+          model: host-passthrough
+          features:
+          - name: "pdpe1gb"
+            policy: "disable"
         memory:
           guest: {{ .Values.macosMojaveKubevirt.memory }}
         devices:
           disks:
-          - name: macos-disk
+          - name: ovmf-code
             disk:
               bus: sata
-          - name: cloudinit
+              readonly: true
+          - name: ovmf-vars
+            disk:
+              bus: sata
+          - name: opencore
+            disk:
+              bus: sata
+            bootOrder: 1
+          - name: macos-disk
             disk:
               bus: sata
           interfaces:
           - name: default
-            bridge: {}
+            masquerade: {}
             model: e1000
+          graphics:
+          - type: vnc
+            listen:
+              type: address
+              address: 0.0.0.0
+          rng: {}
+        features:
+          smm:
+            enabled: false
+          hyperv:
+            spinlocks:
+              enabled: true
+              spinlocks: 8191
+        firmware:
+          bootloader:
+            efi: {}
         machine:
           type: pc-q35-rhel8.6.0
+        qemuGuestAgent:
+          # Disable guest agent as macOS doesn't support it
+          enabled: false
         resources:
           requests:
+            memory: {{ .Values.macosMojaveKubevirt.memory }}
+            cpu: {{ .Values.macosMojaveKubevirt.cpu.cores }}
+          limits:
             memory: {{ .Values.macosMojaveKubevirt.memory }}
             cpu: {{ .Values.macosMojaveKubevirt.cpu.cores }}
       networks:
       - name: default
         pod: {}
       volumes:
+      - name: ovmf-code
+        {{- if .Values.macosMojaveKubevirt.containerDisk }}
+        containerDisk:
+          image: {{ .Values.macosMojaveKubevirt.ovmfCode.image | default "docker.io/johannhartmann/macos-ovmf-code:latest" }}
+          imagePullPolicy: {{ .Values.macosMojaveKubevirt.containerDisk.pullPolicy | default "IfNotPresent" }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: ovmf-vars
+        {{- if .Values.macosMojaveKubevirt.containerDisk }}
+        containerDisk:
+          image: {{ .Values.macosMojaveKubevirt.ovmfVars.image | default "docker.io/johannhartmann/macos-ovmf-vars:latest" }}
+          imagePullPolicy: {{ .Values.macosMojaveKubevirt.containerDisk.pullPolicy | default "IfNotPresent" }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: opencore
+        {{- if .Values.macosMojaveKubevirt.containerDisk }}
+        containerDisk:
+          image: {{ .Values.macosMojaveKubevirt.openCore.image | default "docker.io/johannhartmann/macos-opencore:latest" }}
+          imagePullPolicy: {{ .Values.macosMojaveKubevirt.containerDisk.pullPolicy | default "IfNotPresent" }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
       - name: macos-disk
         {{- if .Values.macosMojaveKubevirt.containerDisk }}
         containerDisk:
@@ -57,10 +120,6 @@ spec:
         persistentVolumeClaim:
           claimName: {{ include "legacy-use.fullname" . }}-macos-mojave-pvc
         {{- end }}
-      - name: cloudinit
-        cloudInitNoCloud:
-          userData: |
-            {{- .Values.macosMojaveKubevirt.userData | nindent 12 }}
 ---
 apiVersion: v1
 kind: Service
