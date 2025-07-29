@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Wine Explorer
+Exec=env WINEPREFIX=/home/wineuser/.wine32 wine explorer
+Icon=folder
+Terminal=false
+Categories=System;

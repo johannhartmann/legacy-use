@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Install TurboCASH
+Exec=env WINEPREFIX=/home/wineuser/.wine32 wine /home/wineuser/TurboCASH_Setup.exe
+Icon=system-software-install
+Terminal=false
+Categories=System;
