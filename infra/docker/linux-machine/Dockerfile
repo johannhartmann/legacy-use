@@ -12,8 +12,8 @@ RUN apt-get update && \
         openssh-server pwgen sudo vim-tiny \
         net-tools \
         # Desktop environment
-        lxde x11vnc xvfb \
-        openbox lxpanel pcmanfm \
+        lxde tightvncserver \
+        openbox lxpanel pcmanfm xvfb \
         gtk2-engines-murrine fonts-ubuntu fonts-ubuntu-console \
         # Python for web interface
         python3-pip python3-dev build-essential \

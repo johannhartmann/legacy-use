@@ -17,7 +17,7 @@ RUN dpkg --add-architecture i386 && \
     # Essential tools
     wget curl ca-certificates lsb-release gnupg2 software-properties-common bzip2 \
     # VNC and desktop
-    xvfb x11vnc fluxbox xterm \
+    tightvncserver fluxbox xterm \
     # Process management
     supervisor \
     # Additional libraries that applications might need
@@ -39,8 +39,8 @@ RUN useradd -m -s /bin/bash wineuser && \
     chown -R wineuser:wineuser /home/wineuser
 
 # Simple supervisor config (removed noVNC - now using shared proxy)
-# VNC without password - removed -usepw and -rfbauth flags
-RUN printf '[supervisord]\nnodaemon=true\nuser=root\n\n[program:xvfb]\ncommand=/usr/bin/Xvfb :1 -screen 0 1920x1080x24\nautorestart=true\nuser=root\npriority=100\n\n[program:x11vnc]\ncommand=/usr/bin/x11vnc -display :1 -forever -shared -rfbport 5900 -noshm\nautorestart=true\nuser=wineuser\npriority=200\n\n[program:fluxbox]\ncommand=/usr/bin/fluxbox -display :1\nautorestart=true\nuser=wineuser\nenvironment=HOME="/home/wineuser",DISPLAY=":1"\npriority=400\n' > /etc/supervisor/conf.d/supervisord.conf
+# TightVNC with no password - using -SecurityTypes None
+RUN printf '[supervisord]\nnodaemon=true\nuser=root\n\n[program:tightvnc]\ncommand=/usr/bin/Xtightvnc :1 -geometry 1920x1080 -depth 24 -rfbport 5900 -SecurityTypes None\nautorestart=true\nuser=wineuser\npriority=100\n\n[program:fluxbox]\ncommand=/usr/bin/fluxbox -display :1\nautorestart=true\nuser=wineuser\nenvironment=HOME="/home/wineuser",DISPLAY=":1"\npriority=400\n' > /etc/supervisor/conf.d/supervisord.conf
 
 # Setup Wine environment
 USER wineuser
