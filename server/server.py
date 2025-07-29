@@ -17,6 +17,7 @@ from server.routes import api_router, job_router, target_router
 from server.routes.diagnostics import diagnostics_router
 from server.routes.sessions import session_router, websocket_router
 from server.routes.settings import settings_router
+from server.routes.vnc import vnc_router
 from server.utils.auth import get_api_key
 from server.utils.job_execution import job_queue_initializer
 from server.utils.session_monitor import start_session_monitor
@@ -24,8 +25,10 @@ from server.utils.session_monitor import start_session_monitor
 from .settings import settings
 
 # Set up logging
+debug_mode = os.getenv('LEGACY_USE_DEBUG', '0') == '1'
 logging.basicConfig(
-    level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.DEBUG if debug_mode else logging.INFO, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
@@ -152,18 +155,19 @@ async def auth_middleware(request: Request, call_next):
         r'^/favicon\.ico$',  # Favicon requests
         r'^/robots\.txt$',  # Robots.txt requests
         r'^/sitemap\.xml$',  # Sitemap requests
-        r'^/sessions/.+/vnc/websockify$',  # VNC WebSocket connections (auth handled in endpoint)
+        r'^/vnc/.+/websockify$',  # VNC WebSocket connections (auth handled in endpoint)
     ]
 
     if settings.SHOW_DOCS:
-        whitelist_patterns.append(
-            r'^/redoc(/.*)?$'
-        )  # Matches /redoc and /redoc/anything
-        whitelist_patterns.append(r'^/openapi.json$')  # Needed for docs
+        whitelist_patterns.append(r'^/docs(/.*)?$')  # Swagger UI
+        whitelist_patterns.append(r'^/redoc(/.*)?$')  # ReDoc
+        whitelist_patterns.append(r'^/openapi.json$')  # OpenAPI spec needed for docs
 
     # Check if request path matches any whitelist pattern
+    # Normalize path by removing double slashes
+    normalized_path = re.sub(r'/+', '/', request.url.path)
     for pattern in whitelist_patterns:
-        if re.match(pattern, request.url.path):
+        if re.match(pattern, normalized_path):
             return await call_next(request)
 
     try:
@@ -233,28 +237,33 @@ app.openapi_components = {
 
 app.openapi_security = [{'ApiKeyAuth': []}]
 
-# Include API router
+# Include API router (already has /api prefix)
 app.include_router(api_router)
 
-# Include core routers
-app.include_router(target_router)
+# Include core routers under /api prefix
+app.include_router(target_router, prefix='/api')
 app.include_router(
     session_router,
+    prefix='/api',
     include_in_schema=not settings.HIDE_INTERNAL_API_ENDPOINTS_IN_DOC,
 )
-app.include_router(job_router)
+app.include_router(job_router, prefix='/api')
 
-# Include WebSocket router
-app.include_router(websocket_router)
+# Include WebSocket router under /api prefix
+app.include_router(websocket_router, prefix='/api')
 
-# Include diagnostics router
+# Include diagnostics router under /api prefix
 app.include_router(
     diagnostics_router,
+    prefix='/api',
     include_in_schema=not settings.HIDE_INTERNAL_API_ENDPOINTS_IN_DOC,
 )
 
-# Include settings router
-app.include_router(settings_router)
+# Include settings router under /api prefix
+app.include_router(settings_router, prefix='/api')
+
+# Include VNC router (already has /vnc prefix, not under /api)
+app.include_router(vnc_router)
 
 
 

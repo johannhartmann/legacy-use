@@ -18,14 +18,17 @@ async def get_api_key(request: Request):
     if 'api_key' in query_params:
         return query_params.get('api_key')
 
-    # if pattern r'^/sessions/.+/vnc/.+$' check in cookies for vnc_auth_<session_id>=<api_key>
-    if re.match(r'^/sessions/.+/vnc/.+$', request.url.path):
+    # if pattern r'^/vnc/.+/.+$' check in cookies for vnc_auth_<session_id>=<api_key>
+    if re.match(r'^/vnc/.+/.+$', request.url.path):
         cookies = request.cookies
-        session_id = request.url.path.split('/')[2]
-        expected_cookie_name = f'vnc_auth_{session_id}'
-        
-        if expected_cookie_name in cookies:
-            api_key = cookies.get(expected_cookie_name)
-            return api_key
+        # For path /vnc/{session_id}/..., session_id is at index 1
+        path_parts = request.url.path.strip('/').split('/')
+        if len(path_parts) >= 2:
+            session_id = path_parts[1]
+            expected_cookie_name = f'vnc_auth_{session_id}'
+            
+            if expected_cookie_name in cookies:
+                api_key = cookies.get(expected_cookie_name)
+                return api_key
 
     raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail='API key is missing')
