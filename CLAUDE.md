@@ -46,7 +46,8 @@ python test_server.py  # Test database connection and API conversion
 ```bash
 # Quick development setup
 make dev-setup    # Sets up Kind cluster with KubeVirt
-make tilt         # Start Tilt (foreground, with auto-reload)
+make vm-preload   # Pre-load VM images (prevents re-downloading, optional)
+make tilt-up      # Start Tilt (with auto-reload)
 make tilt-down    # Stop Tilt (properly cleans up VMs)
 make dev-teardown # Tear down everything
 
@@ -55,16 +56,17 @@ make kind-setup    # Set up Kind cluster with KubeVirt and local registry
 make kind-status   # Check Kind cluster and KubeVirt status
 make kind-teardown # Tear down Kind cluster and registry
 
-make tilt          # Start Tilt in foreground (recommended)
-make tilt-up       # Start Tilt in background
+make tilt-up       # Start Tilt
 make tilt-down     # Stop Tilt and clean up VMs (preserves Kind cluster)
 make tilt-status   # Check Tilt status
+make vm-preload    # Pre-load VM container images (prevents re-downloading)
 
 make build         # Build all Docker images
 make build-push    # Build and push images to registry
 
 # Or use scripts directly
 ./scripts/kind-setup.sh
+./scripts/preload-vm-images.sh  # Pre-load VM images
 ./scripts/tilt-up.sh
 ./scripts/tilt-down.sh
 ./scripts/kind-teardown.sh
@@ -202,3 +204,8 @@ Common issues:
 - Do not start and stop tilt on your own
 - For scaling windows machines we need VirtualMachineInstanceReplicaSet. VirtualMachine is no option.
 - DO NOT RESTART ANY KUBERNETES SERVICES WITH KUBECTL
+- do not fix the currently running instance, fix tilt/helm and wait for your fix being applied
+- do not rebuild and restart on your own but use tilt to do it
+- you can monitor  tilt in tilt.log
+- test before you commit
+- never create files in dockerfiles by hand, always create files and copy them while buiding
