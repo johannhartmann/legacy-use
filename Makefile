@@ -17,10 +17,11 @@ help:
 	@echo "  make kind-status   - Check Kind cluster and KubeVirt status"
 	@echo ""
 	@echo "Tilt commands:"
-	@echo "  make tilt          - Start Tilt (development mode with auto-reload)"
-	@echo "  make tilt-up       - Start Tilt in background"
-	@echo "  make tilt-down     - Stop Tilt (preserves Kind cluster)"
+	@echo "  make tilt-up       - Start Tilt (development mode with auto-reload)"
+	@echo "  make tilt-down     - Stop Tilt (preserves Kind cluster and VM images)"
+	@echo "  make tilt-clean    - Stop Tilt and remove all resources including VM images"
 	@echo "  make tilt-status   - Show Tilt status"
+	@echo "  make vm-preload    - Pre-load VM container images to prevent re-downloading"
 	@echo ""
 	@echo "Docker commands:"
 	@echo "  make build         - Build all Docker images"
@@ -116,11 +117,6 @@ kind-status:
 	@kubectl get nodes 2>/dev/null || true
 
 # Tilt commands
-.PHONY: tilt
-tilt:
-	@echo "Starting Tilt in foreground mode..."
-	tilt up
-
 .PHONY: tilt-up
 tilt-up:
 	@echo "Starting Tilt in background..."
@@ -128,13 +124,23 @@ tilt-up:
 
 .PHONY: tilt-down
 tilt-down:
-	@echo "Stopping Tilt..."
+	@echo "Stopping Tilt (preserving VM images)..."
 	./scripts/tilt-down.sh
+
+.PHONY: tilt-clean
+tilt-clean:
+	@echo "Stopping Tilt and removing all resources including VM images..."
+	./scripts/tilt-down.sh --clean-all
 
 .PHONY: tilt-status
 tilt-status:
 	@echo "Checking Tilt status..."
 	@tilt get session 2>/dev/null || echo "Tilt not running"
+
+.PHONY: vm-preload
+vm-preload:
+	@echo "Pre-loading VM container images..."
+	./scripts/preload-vm-images.sh
 
 # Docker commands
 .PHONY: build
@@ -151,7 +157,7 @@ build-push:
 .PHONY: dev-setup
 dev-setup: kind-setup
 	@echo "Development environment setup complete!"
-	@echo "Run 'make tilt' to start development"
+	@echo "Run 'make tilt-up' to start development"
 
 .PHONY: dev-teardown
 dev-teardown: tilt-down kind-teardown
