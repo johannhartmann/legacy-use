@@ -110,10 +110,17 @@ class TargetType(str, Enum):
     RDP_OPENVPN = 'rdp+openvpn'
 
 
+class ConnectionType(str, Enum):
+    POOL = 'pool'      # Allocate from container pool
+    DIRECT = 'direct'  # Direct connection to host:port
+    VM = 'vm'          # KubeVirt VM connection
+
+
 class Target(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     name: str
     type: TargetType
+    connection_type: ConnectionType = ConnectionType.POOL
     host: str
     username: Optional[str] = None
     password: str
@@ -144,6 +151,7 @@ class Target(BaseModel):
 class TargetCreate(BaseModel):
     name: str
     type: TargetType
+    connection_type: ConnectionType = ConnectionType.POOL
     host: str
     username: Optional[str] = None
     password: str
@@ -159,6 +167,7 @@ class TargetCreate(BaseModel):
 class TargetUpdate(BaseModel):
     name: Optional[str] = None
     type: Optional[TargetType] = None
+    connection_type: Optional[ConnectionType] = None
     host: Optional[str] = None
     username: Optional[str] = None
     password: Optional[str] = None

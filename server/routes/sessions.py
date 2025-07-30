@@ -140,10 +140,10 @@ async def create_session(
         'HEIGHT': str(target.get('height', 768)),
     }
 
-    # Always use container pool for scaling
-    use_container_pool = True
+    # Determine connection strategy based on target's connection_type
+    connection_type = target.get('connection_type', 'pool')
     
-    if use_container_pool:
+    if connection_type == 'pool':
         # Use container pool to allocate existing container
         from server.utils.container_pool import container_pool
         
@@ -222,37 +222,91 @@ async def create_session(
                 status_code=503,
                 detail=f"No available {pool_target_type} containers. Please try again later or scale up the containers."
             )
-    else:
-        # Original container launch logic
-        container_id, container_ip = launch_container(
-            target['type'], str(db_session['id']), container_params=container_params
+    elif connection_type == 'vm':
+        # For VM targets, we need to ensure the VM is running
+        # VMs are tracked via container pool but with special handling
+        from server.utils.container_pool import container_pool
+        
+        pool_target_type = target.get('pool_type', client_type)
+        
+        # Try to find the VM in the pool
+        container_info = await container_pool.allocate_container(
+            str(db_session['id']), pool_target_type
         )
-
-        if container_id and container_ip:
-            # Update session with container info
+        
+        if container_info:
+            # VM found and allocated
+            vnc_port = '5900'  # VMs always use port 5900
             db.update_session(
                 db_session['id'],
                 {
-                    'container_id': container_id,
-                    'container_ip': container_ip,
+                    'container_id': container_info.id,
+                    'container_ip': target['host'],  # Use the service name from target
                     'status': 'running',
-                    'state': 'initializing',  # Ensure state is set
+                    'state': 'ready',
+                    'vnc_port': vnc_port,
+                    'novnc_port': '',  # VMs don't have built-in noVNC
                 },
             )
-            # Get updated session
             db_session = db.get_session(db_session['id'])
-
+            
             # Add container status
-            if container_id := db_session.get('container_id'):
-                container_status = await get_container_status(
-                    container_id, state=db_session.get('state')
-                )
-                db_session['container_status'] = container_status
-        else:
-            # Update session status to error if container launch failed
-            db.update_session(
-                db_session['id'], {'status': 'error', 'state': 'initializing'}
+            container_status = await get_container_status(
+                container_info.id, state=db_session.get('state')
             )
+            db_session['container_status'] = container_status
+        else:
+            # VM not running
+            db.update_session(
+                db_session['id'], 
+                {
+                    'status': 'error', 
+                    'state': 'initializing',
+                    'error_message': f'VM {pool_target_type} is not running. Please start the VM first.'
+                }
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=f"VM {pool_target_type} is not running. Please start the VM first."
+            )
+            
+    elif connection_type == 'direct':
+        # Direct connection - no container needed
+        # Session connects directly to the specified host:port
+        vnc_port = str(target.get('port', 5900))
+        
+        db.update_session(
+            db_session['id'],
+            {
+                'container_id': None,  # No container for direct connections
+                'container_ip': target['host'],  # Direct host
+                'status': 'running',
+                'state': 'ready',  # Direct connections are always ready
+                'vnc_port': vnc_port,
+                'novnc_port': target.get('novnc_port', ''),
+            },
+        )
+        db_session = db.get_session(db_session['id'])
+        
+        # For direct connections, we can't check container status
+        db_session['container_status'] = {
+            'status': 'direct',
+            'message': f'Direct VNC connection to {target["host"]}:{vnc_port}'
+        }
+    else:
+        # Unknown connection type
+        db.update_session(
+            db_session['id'], 
+            {
+                'status': 'error', 
+                'state': 'initializing',
+                'error_message': f'Unknown connection type: {connection_type}'
+            }
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown connection type: {connection_type}"
+        )
 
     return db_session
 
@@ -538,28 +592,42 @@ async def proxy_vnc_websocket(websocket: WebSocket, session_id: UUID):
     vnc_port = session.get('vnc_port', '5900')  # Default VNC port
     container_id = session.get('container_id')
     
-    # For Kubernetes deployments, translate pod IPs to service names
+    # Get target to determine connection type
+    target = db.get_target(session.get('target_id'))
+    if not target:
+        logger.warning(f'[VNC-WS] Target not found for session {session_id}')
+        await websocket.close(code=1008, reason='Target not found')
+        return
+    
+    connection_type = target.get('connection_type', 'pool')
     target_host = container_ip
-    if container_ip and container_ip.startswith('10.244.'):  # Pod IP range
-        # Get target type from session
-        target = db.get_target(session.get('target_id'))
-        if target:
-            target_type = target.get('type')
-            # Map to service names
-            service_mapping = {
-                'linux': 'legacy-use-linux-target',
-                'wine': 'legacy-use-wine-target', 
-                'android': 'legacy-use-android-target',
-                'dosbox': 'legacy-use-dosbox-target',
-                'android-aind': 'legacy-use-android-aind-target'
-            }
-            if target_type in service_mapping:
-                target_host = service_mapping[target_type]
-                logger.info(f'[VNC-WS] Translated pod IP {container_ip} to service {target_host} for {target_type} target')
+    use_proxy = True  # Default to using proxy
     
-    logger.info(f'[VNC-WS] Session details: target_host={target_host}, vnc_port={vnc_port}, container_id={container_id}')
+    # Handle different connection types
+    if connection_type == 'direct':
+        # Direct connection - connect straight to the target
+        logger.info(f'[VNC-WS] Direct connection to {container_ip}:{vnc_port}')
+        # For direct connections, we'll still use the proxy but it will connect directly
+        target_host = container_ip
+        # Still use proxy for consistency, but it will handle direct connections
+    elif container_ip and container_ip.startswith('10.244.'):  # Pod IP range
+        # For Kubernetes deployments, translate pod IPs to service names
+        target_type = target.get('pool_type', target.get('type'))
+        # Map to service names
+        service_mapping = {
+            'linux': 'legacy-use-linux-target',
+            'wine': 'legacy-use-wine-target', 
+            'android': 'legacy-use-android-target',
+            'dosbox': 'legacy-use-dosbox-target',
+            'android-aind': 'legacy-use-android-aind-target'
+        }
+        if target_type in service_mapping:
+            target_host = service_mapping[target_type]
+            logger.info(f'[VNC-WS] Translated pod IP {container_ip} to service {target_host} for {target_type} target')
     
-    # Connect to shared noVNC proxy WebSocket with target information in headers
+    logger.info(f'[VNC-WS] Session details: target_host={target_host}, vnc_port={vnc_port}, container_id={container_id}, connection_type={connection_type}')
+    
+    # Always use the shared proxy for now (it can handle all connection types)
     novnc_proxy_host = os.getenv('NOVNC_PROXY_HOST', 'novnc-proxy')
     novnc_proxy_port = os.getenv('NOVNC_PROXY_PORT', '80')
     
