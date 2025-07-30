@@ -1,10 +1,17 @@
 FROM nginx:1.25-alpine
 
+# Install openssl for password generation
+RUN apk add --no-cache openssl
+
 # Remove default nginx config
 RUN rm /etc/nginx/conf.d/default.conf
 
 # Copy our nginx config
 COPY nginx.conf /etc/nginx/conf.d/legacy-use.conf
+
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
@@ -12,4 +19,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Use custom entrypoint to generate .htpasswd
+ENTRYPOINT ["/docker-entrypoint.sh"]

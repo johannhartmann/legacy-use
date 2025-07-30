@@ -207,6 +207,12 @@ nginx:
     pullPolicy: IfNotPresent
     tag: "local"
   
+  # Basic authentication configuration
+  basicAuth:
+    enabled: true
+    username: "mayflower"
+    password: "best4all"
+  
   service:
     type: ClusterIP
     port: 80

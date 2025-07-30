@@ -30,6 +30,19 @@ spec:
             {{- toYaml .Values.nginx.securityContext | nindent 12 }}
           image: "{{ .Values.global.imageRegistry }}/{{ .Values.nginx.image.repository }}:{{ .Values.nginx.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.nginx.image.pullPolicy }}
+          env:
+            {{- if .Values.nginx.basicAuth.enabled }}
+            - name: BASIC_AUTH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "legacy-use.fullname" . }}-nginx-auth
+                  key: username
+            - name: BASIC_AUTH_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "legacy-use.fullname" . }}-nginx-auth
+                  key: password
+            {{- end }}
           ports:
             - name: http
               containerPort: 80

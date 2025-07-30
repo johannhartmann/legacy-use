@@ -192,3 +192,7 @@ vms/
 *.vhd
 *.vhdx
 *.raw
+
+# Security files
+.htpasswd
+*.htpasswd
