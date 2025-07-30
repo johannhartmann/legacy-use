@@ -184,6 +184,20 @@ main() {
         fi
     done
     
+    # Build macOS extra disks if we're building macOS
+    if [ -d "${SCRIPT_DIR}/macos-mojave" ] && [ -f "${SCRIPT_DIR}/macos-mojave/build-macos-disks.sh" ]; then
+        echo
+        log "Building additional macOS container disks..."
+        cd "${SCRIPT_DIR}/macos-mojave"
+        if PUSH=true REGISTRY="${REGISTRY}/${REGISTRY_PROJECT}" ./build-macos-disks.sh; then
+            log "Successfully built macOS extra disks"
+        else
+            warning "Failed to build macOS extra disks"
+            ((failed++))
+        fi
+        cd "$SCRIPT_DIR"
+    fi
+    
     echo
     echo "========================================"
     if [ $failed -eq 0 ]; then

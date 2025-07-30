@@ -1,0 +1,8 @@
+# Container disk for macOS OVMF VARS
+FROM scratch
+
+# Copy OVMF_VARS-1920x1080.fd from the vms/macos-mojave folder
+COPY OVMF_VARS-1920x1080.fd /disk/
+
+# Set the correct label for KubeVirt container disk
+LABEL kubevirt.io/images.path=/disk

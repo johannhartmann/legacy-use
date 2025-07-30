@@ -1,0 +1,8 @@
+# Container disk for macOS OpenCore
+FROM scratch
+
+# Copy OpenCore.qcow2 from the vms/macos-mojave folder
+COPY OpenCore.qcow2 /disk/
+
+# Set the correct label for KubeVirt container disk
+LABEL kubevirt.io/images.path=/disk
