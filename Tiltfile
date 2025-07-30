@@ -231,40 +231,40 @@ k8s_resource(
 k8s_resource(
     'legacy-use-mcp-server',
     labels=['core'],
-    resource_deps=['legacy-use-dosbox-target']  # Start after all container targets
+    resource_deps=['legacy-use-database']  # Only depend on database
 )
 
 k8s_resource(
     'legacy-use-wine-target',
     port_forwards='0.0.0.0:5910:5900',  # Direct VNC access for debugging
-    labels=['targets'],
-    resource_deps=['legacy-use-mgmt', 'legacy-use-database']
+    labels=['targets']
+    # No dependencies - can start immediately
 )
 
 k8s_resource(
     'legacy-use-linux-target',
     port_forwards='0.0.0.0:5911:5900',  # Direct VNC access for debugging
-    labels=['targets'],
-    resource_deps=['legacy-use-wine-target']  # Start after Wine target
+    labels=['targets']
+    # No dependencies - can start immediately
 )
 
 k8s_resource(
     'legacy-use-android-target',
-    labels=['targets'],
-    resource_deps=['legacy-use-linux-target']  # Start after Linux target
+    labels=['targets']
+    # No dependencies - can start immediately
 )
 
 k8s_resource(
     'legacy-use-android-aind-target',
-    labels=['targets'],
-    resource_deps=['legacy-use-android-target']  # Start after Android emulator target
+    labels=['targets']
+    # No dependencies - can start immediately
 )
 
 k8s_resource(
     'legacy-use-dosbox-target',
     port_forwards='0.0.0.0:5912:5900',  # Direct VNC access for debugging
-    labels=['targets'],
-    resource_deps=['legacy-use-android-aind-target']  # Start after Android AinD target
+    labels=['targets']
+    # No dependencies - can start immediately
 )
 
 k8s_resource(
@@ -297,8 +297,8 @@ if kubevirt_installed:
             kubectl wait --for=jsonpath='{.status.replicas}'=1 vmirs/legacy-use-windows-xp-vmirs -n legacy-use --timeout=60s 2>/dev/null || true
         ''',
         labels=['vms'],
-        auto_init=True,
-        resource_deps=['legacy-use-wine-target', 'legacy-use-linux-target', 'legacy-use-android-target']
+        auto_init=True
+        # No dependencies - VMs can start immediately
     )
     
     # Start Windows 10 VM after Windows XP
@@ -449,7 +449,7 @@ All services are available through a single port:
 - MCP Server: http://localhost:8080/mcp/
 - VNC Sessions: Accessed through the web interface
 
-Container Targets:
+Container Targets (start in parallel):
 - Wine Target: Access via Management UI
 - Linux Target: Access via Management UI
 - Android Target: Access via Management UI
