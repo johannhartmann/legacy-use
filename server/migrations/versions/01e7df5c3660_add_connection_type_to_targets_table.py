@@ -19,28 +19,34 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Add connection_type column with default 'pool'
-    op.add_column('targets', sa.Column('connection_type', sa.String(), nullable=False, server_default='pool'))
+    # Check if column already exists
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = [c['name'] for c in inspector.get_columns('targets')]
     
-    # Update existing targets based on their current configuration
-    # Direct connection targets (ones with actual host IPs)
-    op.execute("""
-        UPDATE targets 
-        SET connection_type = 'direct' 
-        WHERE host NOT LIKE 'legacy-use-%' 
-        AND host NOT LIKE '%kubevirt%'
-        AND host NOT IN ('localhost', '127.0.0.1')
-    """)
-    
-    # VM targets (KubeVirt)
-    op.execute("""
-        UPDATE targets 
-        SET connection_type = 'vm' 
-        WHERE host LIKE '%kubevirt%'
-        OR pool_type LIKE '%-vm'
-    """)
-    
-    # Everything else stays as 'pool' (the default)
+    if 'connection_type' not in columns:
+        # Add connection_type column with default 'pool'
+        op.add_column('targets', sa.Column('connection_type', sa.String(), nullable=False, server_default='pool'))
+        
+        # Update existing targets based on their current configuration
+        # Direct connection targets (ones with actual host IPs)
+        op.execute("""
+            UPDATE targets 
+            SET connection_type = 'direct' 
+            WHERE host NOT LIKE 'legacy-use-%' 
+            AND host NOT LIKE '%kubevirt%'
+            AND host NOT IN ('localhost', '127.0.0.1')
+        """)
+        
+        # VM targets (KubeVirt)
+        op.execute("""
+            UPDATE targets 
+            SET connection_type = 'vm' 
+            WHERE host LIKE '%kubevirt%'
+            OR pool_type LIKE '%-vm'
+        """)
+        
+        # Everything else stays as 'pool' (the default)
 
 
 def downgrade() -> None:
