@@ -397,7 +397,7 @@ androidTarget:
 
 # Windows XP KubeVirt VM Configuration (Requires KubeVirt in cluster)
 windowsXpKubevirt:
-  enabled: false
+  enabled: true
   replicas: 1  # Number of Windows XP VM instances
   
   # VM configuration
@@ -452,7 +452,7 @@ windowsXpKubevirt:
 
 # Windows 10 KubeVirt VM Configuration (Requires KubeVirt in cluster)
 windows10Kubevirt:
-  enabled: false
+  enabled: true
   replicas: 1  # Number of Windows 10 VM instances
   
   # VM configuration
