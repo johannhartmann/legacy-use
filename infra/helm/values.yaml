@@ -525,11 +525,11 @@ macosMojaveKubevirt:
   
   # OVMF firmware images
   ovmfCode:
-    image: "docker.io/johannhartmann/macos-ovmf-code:latest"
+    image: "registry.git.mayflower.de/legacy-use/legacy-use/macos-ovmf-code:latest"
   ovmfVars:
-    image: "docker.io/johannhartmann/macos-ovmf-vars:latest"
+    image: "registry.git.mayflower.de/legacy-use/legacy-use/macos-ovmf-vars:latest"
   openCore:
-    image: "docker.io/johannhartmann/macos-opencore:latest"
+    image: "registry.git.mayflower.de/legacy-use/legacy-use/macos-opencore:latest"
   
   # Disk configuration
   disk:

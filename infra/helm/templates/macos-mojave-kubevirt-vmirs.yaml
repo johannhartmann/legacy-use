@@ -92,7 +92,7 @@ spec:
       - name: ovmf-code
         {{- if .Values.macosMojaveKubevirt.containerDisk }}
         containerDisk:
-          image: {{ .Values.macosMojaveKubevirt.ovmfCode.image | default "docker.io/johannhartmann/macos-ovmf-code:latest" }}
+          image: {{ .Values.macosMojaveKubevirt.ovmfCode.image | default "registry.git.mayflower.de/legacy-use/legacy-use/macos-ovmf-code:latest" }}
           imagePullPolicy: {{ .Values.macosMojaveKubevirt.containerDisk.pullPolicy | default "IfNotPresent" }}
         {{- else }}
         emptyDir: {}
@@ -100,7 +100,7 @@ spec:
       - name: ovmf-vars
         {{- if .Values.macosMojaveKubevirt.containerDisk }}
         containerDisk:
-          image: {{ .Values.macosMojaveKubevirt.ovmfVars.image | default "docker.io/johannhartmann/macos-ovmf-vars:latest" }}
+          image: {{ .Values.macosMojaveKubevirt.ovmfVars.image | default "registry.git.mayflower.de/legacy-use/legacy-use/macos-ovmf-vars:latest" }}
           imagePullPolicy: {{ .Values.macosMojaveKubevirt.containerDisk.pullPolicy | default "IfNotPresent" }}
         {{- else }}
         emptyDir: {}
@@ -108,7 +108,7 @@ spec:
       - name: opencore
         {{- if .Values.macosMojaveKubevirt.containerDisk }}
         containerDisk:
-          image: {{ .Values.macosMojaveKubevirt.openCore.image | default "docker.io/johannhartmann/macos-opencore:latest" }}
+          image: {{ .Values.macosMojaveKubevirt.openCore.image | default "registry.git.mayflower.de/legacy-use/legacy-use/macos-opencore:latest" }}
           imagePullPolicy: {{ .Values.macosMojaveKubevirt.containerDisk.pullPolicy | default "IfNotPresent" }}
         {{- else }}
         emptyDir: {}
