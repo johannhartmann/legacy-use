@@ -42,8 +42,8 @@ spec:
               done
               echo "Database is ready!"
               
-              echo "Ensuring database exists..."
-              PGPASSWORD=postgres createdb -h {{ include "legacy-use.fullname" . }}-database -p 5432 -U postgres legacy_use_demo || echo "Database already exists"
+              # Database creation is now handled by PostgreSQL init scripts
+              # This container only waits for the database to be available
       {{- end }}
       containers:
         - name: management

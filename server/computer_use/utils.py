@@ -93,6 +93,14 @@ def _inject_prompt_caching(
         if message['role'] == 'user' and isinstance(
             content := message['content'], list
         ):
+            # Skip if ANY content item is a tool_result (they don't support cache_control on content)
+            has_tool_result = any(
+                isinstance(item, dict) and item.get('type') == 'tool_result'
+                for item in content
+            )
+            if has_tool_result:
+                continue
+                
             if breakpoints_remaining:
                 breakpoints_remaining -= 1
                 content[-1]['cache_control'] = BetaCacheControlEphemeralParam(
@@ -161,12 +169,11 @@ def _make_api_tool_result(
     is_extraction = 'extraction' in tool_use_id
 
     if result.error:
-        # For error case, return the error in the expected format
+        # For error case, return ONLY the error field (no content field)
         return {
             'type': 'tool_result',
             'tool_use_id': tool_use_id,
-            'content': [],
-            'error': _maybe_prepend_system_tool_result(result, result.error),
+            'error': result.error,
         }
 
     # For success case, prepare the content

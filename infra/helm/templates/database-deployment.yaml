@@ -70,6 +70,9 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
       volumes:
         - name: data
           {{- if .Values.database.persistence.enabled }}
@@ -78,6 +81,10 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
+        - name: init-scripts
+          configMap:
+            name: {{ include "legacy-use.fullname" . }}-database-init
+            defaultMode: 0755
       {{- with .Values.database.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

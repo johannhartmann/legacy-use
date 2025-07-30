@@ -31,10 +31,30 @@ delete_cluster() {
     
     if kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
         log "Deleting Kind cluster '$CLUSTER_NAME'..."
-        kind delete cluster --name "$CLUSTER_NAME"
+        if ! kind delete cluster --name "$CLUSTER_NAME" 2>/dev/null; then
+            warning "Kind delete failed, attempting force cleanup..."
+            
+            # Force remove stuck containers
+            log "Force removing Kind containers..."
+            docker kill "${CLUSTER_NAME}-control-plane" "${CLUSTER_NAME}-worker" 2>/dev/null || true
+            sleep 2
+            docker rm -f "${CLUSTER_NAME}-control-plane" "${CLUSTER_NAME}-worker" 2>/dev/null || true
+            
+            # Clean up Docker network
+            docker network rm kind 2>/dev/null || true
+            
+            # Remove from kind's cluster list
+            kind delete cluster --name "$CLUSTER_NAME" 2>/dev/null || true
+        fi
         log "Cluster '$CLUSTER_NAME' deleted successfully!"
     else
         warning "Cluster '$CLUSTER_NAME' does not exist."
+        
+        # Check for orphaned containers anyway
+        if docker ps -a | grep -q "${CLUSTER_NAME}-"; then
+            warning "Found orphaned cluster containers, cleaning up..."
+            docker rm -f $(docker ps -a | grep "${CLUSTER_NAME}-" | awk '{print $1}') 2>/dev/null || true
+        fi
     fi
 }
 

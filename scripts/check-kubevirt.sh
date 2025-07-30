@@ -251,8 +251,9 @@ main() {
     check_cluster
     check_kubevirt_deployment
     check_kubevirt_components
-    check_cdi_deployment
-    check_cdi_components
+    # CDI checks removed - not needed when using container disks exclusively
+    # check_cdi_deployment
+    # check_cdi_components
     check_virtctl
     list_vms
     print_summary

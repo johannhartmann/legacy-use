@@ -54,6 +54,27 @@ spec:
               mountPath: /home/wineuser/apps
           resources:
             {{- toYaml .Values.wineTarget.resources | nindent 12 }}
+          livenessProbe:
+            tcpSocket:
+              port: vnc
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: vnc
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            tcpSocket:
+              port: vnc
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
       volumes:
         - name: wine-data
           {{- if .Values.wineTarget.persistence.enabled }}

@@ -42,6 +42,27 @@ spec:
               protocol: TCP
           resources:
             {{- toYaml .Values.linuxTarget.resources | nindent 12 }}
+          livenessProbe:
+            tcpSocket:
+              port: vnc
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: vnc
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            tcpSocket:
+              port: vnc
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
       {{- with .Values.linuxTarget.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -155,7 +155,8 @@ windowsXpKubevirt:
   enabled: true  # KubeVirt is installed in our Kind cluster
   
   # Number of replicas for VMIRS
-  replicas: 1
+  # Set to 0 initially - the vm-startup-sequencer will scale this up
+  replicas: 0
   
   # VM hostname
   hostname: legacy-winxp-dev
@@ -170,20 +171,17 @@ windowsXpKubevirt:
     legacy-use.target-type: "windows-xp-vm"
     legacy-use.scalable: "true"
   
-  # Windows XP disk URL - CDI will download from this URL
-  diskUrl: "https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=winxp.qcow2"
+  # Use container disk from registry
+  containerDisk:
+    image: "registry.git.mayflower.de/legacy-use/legacy-use/legacy-use-windows-xp-containerdisk:latest"
+    pullPolicy: "IfNotPresent"
+  
   
   # Disk configuration
   disk:
     size: 32Gi
     storageClass: standard  # Kind uses 'standard' storage class
   
-  # DataVolume template configuration
-  dataVolumeTemplate:
-    enabled: true
-    source:
-      http:
-        url: "https://intranet.mayflower.de/s/sPD3fEnNQGWATLC/download?path=%2F&files=winxp.qcow2"
   
   # VirtIO drivers
   virtioDrivers:
@@ -229,6 +227,128 @@ ingress:
 # Disable autoscaling for development
 autoscaling:
   enabled: false
+
+# Windows 10 KubeVirt VM (requires KubeVirt to be installed)
+windows10Kubevirt:
+  enabled: true  # Re-enabled after fixing issues
+  
+  # Number of replicas for VMIRS
+  # Set to 0 initially - the vm-startup-sequencer will scale this up
+  replicas: 0
+  
+  # VM hostname
+  hostname: legacy-win10-dev
+  
+  # VM CPU and memory configuration
+  cpu:
+    cores: 2
+  memory: 2Gi  # Reduced from 8Gi to save resources
+  
+  # Labels for the VMs
+  labels:
+    legacy-use.target-type: "windows-10-vm"
+    legacy-use.scalable: "true"
+  
+  # Use container disk from registry
+  containerDisk:
+    image: "registry.git.mayflower.de/legacy-use/legacy-use/legacy-use-windows-10-containerdisk:latest"
+    pullPolicy: "IfNotPresent"
+  
+  
+  # Disk configuration
+  disk:
+    size: 64Gi
+    storageClass: standard  # Kind uses 'standard' storage class
+  
+  
+  # VirtIO drivers
+  virtioDrivers:
+    image: kubevirt/virtio-container-disk:latest
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    rdpPort: 3389
+    vncPort: 5900
+  
+  # Cloud-init user data for Windows
+  userData: |
+    # Add any cloud-init configuration here
+    # Note: Windows requires cloudbase-init
+  
+  # noVNC for web access
+  novnc:
+    enabled: true
+    image: theasp/novnc:latest
+    imagePullPolicy: IfNotPresent
+    password: "windows"
+    service:
+      type: ClusterIP
+      port: 6084
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
+
+# macOS Mojave KubeVirt VM (requires KubeVirt to be installed)
+macosMojaveKubevirt:
+  enabled: true  # Enable macOS Mojave VM
+  
+  # Number of replicas for VMIRS
+  # Set to 0 initially - the vm-startup-sequencer will scale this up
+  replicas: 0
+  
+  # VM hostname
+  hostname: legacy-mojave-dev
+  
+  # VM CPU and memory configuration
+  cpu:
+    cores: 4
+  memory: 4Gi  # macOS needs good memory allocation
+  
+  # Labels for the VMs
+  labels:
+    legacy-use.target-type: "macos-mojave-vm"
+    legacy-use.scalable: "true"
+  
+  # Use container disk from Mayflower registry
+  containerDisk:
+    image: "registry.git.mayflower.de/legacy-use/legacy-use/legacy-use-macos-mojave-containerdisk:latest"
+    pullPolicy: "IfNotPresent"
+  
+  # Disk configuration
+  disk:
+    size: 64Gi
+    storageClass: standard  # Kind uses 'standard' storage class
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    vncPort: 5900
+  
+  # Cloud-init user data for macOS
+  userData: |
+    # macOS cloud-init configuration
+  
+  # noVNC for web access
+  novnc:
+    enabled: true
+    image: theasp/novnc:latest
+    imagePullPolicy: IfNotPresent
+    password: "mojave"
+    service:
+      type: ClusterIP
+      port: 6085
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
 
 # Development-specific service configuration
 # Use NodePort for easier access from host

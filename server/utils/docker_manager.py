@@ -2,8 +2,10 @@
 Docker container management utilities for session management.
 """
 
+import asyncio
 import json
 import logging
+import socket
 import subprocess
 import time
 from typing import Dict, Optional, Tuple
@@ -16,9 +18,39 @@ logger = logging.getLogger(__name__)
 CONTAINER_PORT = 8088
 
 
+async def check_vnc_port(host: str, port: int = 5900, timeout: float = 5.0) -> bool:
+    """
+    Check if VNC port is accessible via TCP socket.
+    
+    Args:
+        host: The host to check
+        port: The VNC port (default 5900)
+        timeout: Connection timeout in seconds
+        
+    Returns:
+        True if port is accessible, False otherwise
+    """
+    try:
+        # Create a TCP socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        
+        # Try to connect
+        result = sock.connect_ex((host, port))
+        sock.close()
+        
+        return result == 0
+    except socket.gaierror:
+        logger.debug(f"Failed to resolve hostname: {host}")
+        return False
+    except Exception as e:
+        logger.debug(f"Socket error checking VNC port on {host}:{port}: {str(e)}")
+        return False
+
+
 async def check_target_container_health(container_ip_or_name: str) -> dict:
     """
-    Check the /health endpoint of a target container.
+    Check the health of a target container via VNC port and HTTP endpoints.
 
     Args:
         container_ip_or_name: The IP address or container name.
@@ -29,7 +61,20 @@ async def check_target_container_health(container_ip_or_name: str) -> dict:
           'healthy': bool (True if health check passed, False otherwise)
           'reason': str (Details about the health status or error)
     """
-    # Try different health endpoints based on what the targets expose
+    # First try VNC port check (primary health indicator)
+    vnc_healthy = await check_vnc_port(container_ip_or_name, 5900, timeout=3.0)
+    if vnc_healthy:
+        logger.info(f'VNC port check passed for target {container_ip_or_name}')
+        return {'healthy': True, 'reason': 'VNC port 5900 is accessible.'}
+    
+    # Try alternative VNC ports that some targets might use
+    alt_vnc_ports = [5901, 5902]
+    for port in alt_vnc_ports:
+        if await check_vnc_port(container_ip_or_name, port, timeout=2.0):
+            logger.info(f'VNC port check passed for target {container_ip_or_name} on port {port}')
+            return {'healthy': True, 'reason': f'VNC port {port} is accessible.'}
+    
+    # Fallback to HTTP health endpoints
     health_urls = [
         f'http://{container_ip_or_name}:6081/api/health',  # Linux target health endpoint
         f'http://{container_ip_or_name}:6080/',  # Wine/Android target noVNC endpoint
@@ -41,17 +86,17 @@ async def check_target_container_health(container_ip_or_name: str) -> dict:
             try:
                 health_response = await client.get(health_url)
                 if health_response.status_code == 200:
-                    logger.info(f'Health check passed for target {container_ip_or_name} at {health_url}')
-                    return {'healthy': True, 'reason': 'Health check successful.'}
+                    logger.info(f'HTTP health check passed for target {container_ip_or_name} at {health_url}')
+                    return {'healthy': True, 'reason': 'HTTP health check successful.'}
             except httpx.TimeoutException:
-                logger.debug(f'Health check timeout for {health_url}')
+                logger.debug(f'HTTP health check timeout for {health_url}')
                 continue
             except httpx.RequestError as e:
-                logger.debug(f'Health check error for {health_url}: {str(e)}')
+                logger.debug(f'HTTP health check error for {health_url}: {str(e)}')
                 continue
     
-    # If all health checks failed
-    reason = f'Target container at {container_ip_or_name} failed all health checks'
+    # If all checks failed
+    reason = f'Target at {container_ip_or_name} failed VNC port check (5900-5902) and all HTTP health checks'
     logger.warning(f'{reason}')
     return {'healthy': False, 'reason': reason}
 

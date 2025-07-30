@@ -217,6 +217,19 @@ async def sampling_loop(
             raise
 
         try:
+            # Log messages to trace tool_result issues
+            logger.info(f"Job {job_id}: Sending {len(current_messages_for_api)} messages to API")
+            for i, msg in enumerate(current_messages_for_api):
+                if msg['role'] == 'user' and isinstance(msg.get('content'), list):
+                    for j, content_item in enumerate(msg['content']):
+                        if isinstance(content_item, dict) and content_item.get('type') == 'tool_result':
+                            logger.info(f"Job {job_id}: Message[{i}].content[{j}] is tool_result")
+                            logger.info(f"Job {job_id}: tool_result keys: {list(content_item.keys())}")
+                            if 'cache_control' in content_item:
+                                logger.warning(f"Job {job_id}: Found cache_control in tool_result content!")
+                            if 'error' in content_item and 'content' in content_item:
+                                logger.info(f"Job {job_id}: tool_result has both error and content fields")
+            
             # Use original 'system' variable
             raw_response = await client.beta.messages.with_raw_response.create(
                 max_tokens=max_tokens,
@@ -361,6 +374,14 @@ async def sampling_loop(
                     tool_result_block = _make_api_tool_result(
                         result, content_block['id']
                     )
+                    
+                    # Log tool_result structure to debug "Extra inputs" error
+                    logger.info(f"Job {job_id}: Created tool_result_block with keys: {list(tool_result_block.keys())}")
+                    if 'error' in tool_result_block:
+                        logger.info(f"Job {job_id}: tool_result has error field: {tool_result_block['error']}")
+                    if 'content' in tool_result_block:
+                        logger.info(f"Job {job_id}: tool_result has content field with {len(tool_result_block['content'])} items")
+                    
                     resulting_message = BetaMessageParam(
                         content=[tool_result_block], role='user'
                     )

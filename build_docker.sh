@@ -85,6 +85,18 @@ echo ""
 echo "📊 Built images:"
 docker images | grep -E "(legacy-use|linux-machine)" | grep local
 
+# Build VM container disk images if they exist
+if [ -d "vm-images" ] && [ -x "vm-images/build-vm-images.sh" ]; then
+    echo ""
+    echo "💿 Checking for VM container disk images..."
+    if [ -f "vm-images/windows-xp/winxp.qcow2" ] || [ -f "vm-images/windows-10/win10.qcow2" ] || [ -f "vm-images/macos-mojave/mojave.qcow2" ]; then
+        echo "🔨 Building VM container disk images..."
+        (cd vm-images && ./build-vm-images.sh)
+    else
+        echo "ℹ️  No VM images found. Run './vm-images/download-images.sh' to download them."
+    fi
+fi
+
 echo ""
 echo "🚀 Ready to start with:"
 echo "  ./start_docker_compose.sh"

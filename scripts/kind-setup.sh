@@ -151,9 +151,149 @@ data:
 EOF
 }
 
+optimize_etcd_resources() {
+    log "Optimizing etcd resources for better performance..."
+    
+    # Get the control plane node name
+    local control_plane_node=$(kind get nodes --name "$CLUSTER_NAME" | grep control-plane | head -1)
+    
+    if [ -z "$control_plane_node" ]; then
+        error "Could not find control plane node"
+        return 1
+    fi
+    
+    log "Found control plane node: $control_plane_node"
+    
+    # First ensure the cluster is stable before making changes
+    log "Waiting for cluster to stabilize before optimizing etcd..."
+    local stabilize_count=0
+    while [ $stabilize_count -lt 30 ]; do
+        if kubectl get nodes &>/dev/null && kubectl get pods -n kube-system &>/dev/null; then
+            log "Cluster is stable"
+            break
+        fi
+        sleep 2
+        stabilize_count=$((stabilize_count + 1))
+    done
+    
+    log "Current etcd resources (before optimization):"
+    docker exec "$control_plane_node" grep -A4 "resources:" /etc/kubernetes/manifests/etcd.yaml || true
+    
+    # Create a temporary etcd manifest with increased resources
+    cat <<'EOF' > /tmp/etcd-patch.yaml
+- op: replace
+  path: /spec/containers/0/resources
+  value:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+EOF
+    
+    # Apply the patch to the etcd manifest
+    docker exec "$control_plane_node" bash -c '
+        # Backup original manifest
+        cp /etc/kubernetes/manifests/etcd.yaml /etc/kubernetes/manifests/etcd.yaml.bak
+        
+        # Use a more precise sed command to update resources
+        sed -i -e "/^    resources:$/{
+            N
+            :loop
+            N
+            s/resources:.*startupProbe:/resources:\n      requests:\n        cpu: 500m\n        memory: 512Mi\n      limits:\n        cpu: 1000m\n        memory: 1Gi\n    startupProbe:/
+            t end
+            b loop
+            :end
+        }" /etc/kubernetes/manifests/etcd.yaml
+    '
+    
+    # Force etcd pod to restart by moving the manifest
+    log "Forcing etcd to restart with new resources..."
+    docker exec "$control_plane_node" bash -c '
+        mv /etc/kubernetes/manifests/etcd.yaml /tmp/etcd.yaml
+        sleep 5
+        mv /tmp/etcd.yaml /etc/kubernetes/manifests/etcd.yaml
+    '
+    
+    # Wait for the old etcd pod to terminate
+    local retry_count=0
+    while [ $retry_count -lt 30 ]; do
+        if ! docker exec "$control_plane_node" crictl ps 2>/dev/null | grep -q etcd; then
+            log "Old etcd pod has terminated, waiting for new one to start..."
+            break
+        fi
+        sleep 2
+        retry_count=$((retry_count + 1))
+    done
+    
+    # Wait for new etcd pod to be running
+    retry_count=0
+    while [ $retry_count -lt 30 ]; do
+        if docker exec "$control_plane_node" crictl ps 2>/dev/null | grep -q etcd; then
+            log "New etcd pod is running"
+            sleep 10  # Give it time to fully initialize
+            break
+        fi
+        sleep 2
+        retry_count=$((retry_count + 1))
+    done
+    
+    # Verify etcd is running and show new resources
+    log "Verifying etcd pod status..."
+    
+    # Wait a bit for pod to fully initialize
+    sleep 5
+    
+    local etcd_pod=$(kubectl get pod -n kube-system 2>/dev/null | grep "^etcd-" | awk '{print $1}' | head -1)
+    if [ -n "$etcd_pod" ]; then
+        log "etcd pod found: $etcd_pod"
+        
+        # Get actual pod resources (not manifest)
+        local actual_resources=$(kubectl get pod -n kube-system "$etcd_pod" -o jsonpath='{.spec.containers[0].resources}' 2>/dev/null)
+        
+        if echo "$actual_resources" | grep -q "500m"; then
+            log "✓ etcd optimization successful!"
+            log "New etcd resources (after optimization):"
+            echo "$actual_resources" | jq '.' 2>/dev/null || echo "$actual_resources"
+        else
+            log "⚠ Warning: etcd pod resources may not have updated correctly"
+            log "Pod resources:"
+            echo "$actual_resources" | jq '.' 2>/dev/null || echo "$actual_resources"
+            log "Manifest resources:"
+            docker exec "$control_plane_node" grep -A6 "resources:" /etc/kubernetes/manifests/etcd.yaml || true
+        fi
+    else
+        log "etcd resources updated (pod verification skipped - this is normal during initial setup)"
+        log "Updated etcd manifest resources:"
+        docker exec "$control_plane_node" grep -A6 "resources:" /etc/kubernetes/manifests/etcd.yaml || true
+    fi
+    
+    log "etcd optimization complete!"
+}
+
 
 install_kubevirt() {
     log "Installing KubeVirt..."
+    
+    # Wait for API server to be fully ready after etcd optimization
+    log "Ensuring API server is ready..."
+    local retry_count=0
+    while [ $retry_count -lt 60 ]; do
+        if kubectl get --raw /healthz &>/dev/null; then
+            log "API server is responding"
+            break
+        fi
+        log "Waiting for API server to be ready... (attempt $((retry_count + 1))/60)"
+        sleep 5
+        retry_count=$((retry_count + 1))
+    done
+    
+    if [ $retry_count -eq 60 ]; then
+        error "API server did not become ready in time"
+        return 1
+    fi
     
     # Get KubeVirt version
     if [ -z "$KUBEVIRT_VERSION" ]; then
@@ -163,17 +303,45 @@ install_kubevirt() {
         log "Using specified KubeVirt version: $KUBEVIRT_VERSION"
     fi
     
-    # Deploy KubeVirt operator
+    # Deploy KubeVirt operator with retry logic
     log "Deploying KubeVirt operator..."
-    kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
+    retry_count=0
+    while [ $retry_count -lt 3 ]; do
+        if kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml" --validate=false 2>&1; then
+            log "KubeVirt operator deployment initiated"
+            break
+        fi
+        log "Failed to deploy KubeVirt operator, retrying... (attempt $((retry_count + 1))/3)"
+        sleep 10
+        retry_count=$((retry_count + 1))
+    done
+    
+    if [ $retry_count -eq 3 ]; then
+        error "Failed to deploy KubeVirt operator after 3 attempts"
+        return 1
+    fi
     
     # Wait for operator to be ready
     log "Waiting for KubeVirt operator to be ready..."
     kubectl wait -n kubevirt deployment/virt-operator --for=condition=Available --timeout=300s
     
-    # Deploy KubeVirt CR
+    # Deploy KubeVirt CR with retry logic
     log "Deploying KubeVirt CR..."
-    kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-cr.yaml"
+    retry_count=0
+    while [ $retry_count -lt 3 ]; do
+        if kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-cr.yaml" --validate=false 2>&1; then
+            log "KubeVirt CR deployment initiated"
+            break
+        fi
+        log "Failed to deploy KubeVirt CR, retrying... (attempt $((retry_count + 1))/3)"
+        sleep 10
+        retry_count=$((retry_count + 1))
+    done
+    
+    if [ $retry_count -eq 3 ]; then
+        error "Failed to deploy KubeVirt CR after 3 attempts"
+        return 1
+    fi
     
     # Check if we need to enable emulation
     if ! grep -q -E 'vmx|svm' /proc/cpuinfo; then
@@ -203,6 +371,9 @@ install_kubevirt() {
     fi
 }
 
+# CDI installation removed - not needed when using container disks exclusively
+# Keeping function commented for reference if needed in future
+: '
 install_cdi() {
     log "Installing CDI (Containerized Data Importer)..."
     
@@ -210,17 +381,45 @@ install_cdi() {
     local CDI_VERSION="${CDI_VERSION:-v1.60.3}"
     log "Using CDI version: $CDI_VERSION"
     
-    # Deploy CDI operator
+    # Deploy CDI operator with retry logic
     log "Deploying CDI operator..."
-    kubectl create -f "https://github.com/kubevirt/containerized-data-importer/releases/download/${CDI_VERSION}/cdi-operator.yaml"
+    retry_count=0
+    while [ $retry_count -lt 3 ]; do
+        if kubectl create -f "https://github.com/kubevirt/containerized-data-importer/releases/download/${CDI_VERSION}/cdi-operator.yaml" --validate=false 2>&1; then
+            log "CDI operator deployment initiated"
+            break
+        fi
+        log "Failed to deploy CDI operator, retrying... (attempt $((retry_count + 1))/3)"
+        sleep 10
+        retry_count=$((retry_count + 1))
+    done
+    
+    if [ $retry_count -eq 3 ]; then
+        error "Failed to deploy CDI operator after 3 attempts"
+        return 1
+    fi
     
     # Wait for operator to be ready
     log "Waiting for CDI operator to be ready..."
     kubectl wait -n cdi deployment/cdi-operator --for=condition=Available --timeout=300s
     
-    # Deploy CDI CR
+    # Deploy CDI CR with retry logic
     log "Deploying CDI CR..."
-    kubectl create -f "https://github.com/kubevirt/containerized-data-importer/releases/download/${CDI_VERSION}/cdi-cr.yaml"
+    retry_count=0
+    while [ $retry_count -lt 3 ]; do
+        if kubectl create -f "https://github.com/kubevirt/containerized-data-importer/releases/download/${CDI_VERSION}/cdi-cr.yaml" --validate=false 2>&1; then
+            log "CDI CR deployment initiated"
+            break
+        fi
+        log "Failed to deploy CDI CR, retrying... (attempt $((retry_count + 1))/3)"
+        sleep 10
+        retry_count=$((retry_count + 1))
+    done
+    
+    if [ $retry_count -eq 3 ]; then
+        error "Failed to deploy CDI CR after 3 attempts"
+        return 1
+    fi
     
     # Wait for CDI to be ready
     log "Waiting for CDI to be ready (this may take a few minutes)..."
@@ -239,6 +438,7 @@ install_cdi() {
     log "CDI components status:"
     kubectl get all -n cdi
 }
+'
 
 install_virtctl() {
     log "Installing virtctl CLI tool..."
@@ -328,8 +528,9 @@ main() {
     connect_registry_to_kind
     configure_registry_on_nodes
     create_registry_configmap
+    # optimize_etcd_resources  # Disabled: causes cluster instability during initialization
     install_kubevirt
-    install_cdi
+    # install_cdi  # Removed: not needed when using container disks exclusively
     install_virtctl
     print_cluster_info
     

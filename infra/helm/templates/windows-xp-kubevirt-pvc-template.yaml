@@ -19,10 +19,4 @@ spec:
   resources:
     requests:
       storage: {{ .Values.windowsXpKubevirt.persistence.size }}
-  {{- if .Values.windowsXpKubevirt.dataVolumeTemplate.enabled }}
-  dataSource:
-    name: {{ include "legacy-use.fullname" . }}-windows-xp-dv
-    kind: DataVolume
-    apiGroup: cdi.kubevirt.io
-  {{- end }}
 {{- end }}

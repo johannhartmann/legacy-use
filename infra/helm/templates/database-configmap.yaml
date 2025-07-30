@@ -1,0 +1,28 @@
+{{- if .Values.database.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "legacy-use.fullname" . }}-database-init
+  labels:
+    {{- include "legacy-use.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+data:
+  init-db.sh: |
+    #!/bin/bash
+    set -e
+
+    # This script runs as the postgres user during container initialization
+    echo "Initializing PostgreSQL database..."
+
+    # Create the database if it doesn't exist
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
+        SELECT 'CREATE DATABASE {{ .Values.database.postgresDatabase }}'
+        WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{{ .Values.database.postgresDatabase }}')
+        \gexec
+    EOSQL
+
+    echo "Database initialization complete."
+
+  # PostgreSQL will also automatically run any .sql files in /docker-entrypoint-initdb.d/
+  # This is useful for initial schema creation if needed
+{{- end }}

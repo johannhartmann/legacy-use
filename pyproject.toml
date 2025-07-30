@@ -25,6 +25,8 @@ dependencies = [
     "uvicorn>=0.27.1",
     "websockets>=12.0.0",
     "kubernetes>=28.1.0",
+    "vncdotool>=1.2.0",
+    "pillow>=10.0.0",
 ]
 
 [dependency-groups]
