@@ -209,7 +209,7 @@ nginx:
   
   # Basic authentication configuration
   basicAuth:
-    enabled: true
+    enabled: false
     username: "mayflower"
     password: "best4all"
   
