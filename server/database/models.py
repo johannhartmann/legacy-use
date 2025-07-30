@@ -52,6 +52,7 @@ class Target(Base):
     vnc_path = Column(String, nullable=False, default='vnc.html')
     novnc_port = Column(String, nullable=False, default='6080')
     pool_type = Column(String, nullable=True)
+    connection_type = Column(String, nullable=False, default='pool')
     tailscale_authkey = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
