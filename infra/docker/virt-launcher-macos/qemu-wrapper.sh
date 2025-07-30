@@ -17,11 +17,31 @@ done
 
 if [ "$NEEDS_SMC" = true ]; then
     echo "[$(date)] Detected macOS VM, adding Apple SMC device" >> /var/log/qemu-wrapper.log
+    # Find the original QEMU binary
+    if [ -f /usr/libexec/qemu-kvm.orig ]; then
+        QEMU_BIN="/usr/libexec/qemu-kvm.orig"
+    elif [ -f /usr/bin/qemu-system-x86_64.orig ]; then
+        QEMU_BIN="/usr/bin/qemu-system-x86_64.orig"
+    elif [ -f /usr/libexec/qemu-system-x86_64.orig ]; then
+        QEMU_BIN="/usr/libexec/qemu-system-x86_64.orig"
+    else
+        echo "Error: Could not find original QEMU binary" >> /var/log/qemu-wrapper.log
+        exit 1
+    fi
     # Execute real QEMU with additional Apple SMC device
-    exec /usr/bin/qemu-system-x86_64.orig \
+    exec "$QEMU_BIN" \
         -device "isa-applesmc,osk=ourhardworkbythesewordsguardedpleasedontsteal(c)AppleComputerInc" \
         "$@"
 else
     # Not a macOS VM, execute normally
-    exec /usr/bin/qemu-system-x86_64.orig "$@"
+    if [ -f /usr/libexec/qemu-kvm.orig ]; then
+        exec /usr/libexec/qemu-kvm.orig "$@"
+    elif [ -f /usr/bin/qemu-system-x86_64.orig ]; then
+        exec /usr/bin/qemu-system-x86_64.orig "$@"
+    elif [ -f /usr/libexec/qemu-system-x86_64.orig ]; then
+        exec /usr/libexec/qemu-system-x86_64.orig "$@"
+    else
+        echo "Error: Could not find original QEMU binary" >> /var/log/qemu-wrapper.log
+        exit 1
+    fi
 fi
