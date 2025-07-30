@@ -501,7 +501,7 @@ windows10Kubevirt:
 
 # macOS Mojave KubeVirt VM Configuration (Requires KubeVirt in cluster)
 macosMojaveKubevirt:
-  enabled: false
+  enabled: true
   replicas: 1  # Number of macOS Mojave VM instances
   
   # VM configuration
