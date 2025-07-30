@@ -216,7 +216,32 @@ k8s_yaml(helm(
     set=all_set_values
 ))
 
+# Create a dummy Job to ensure virt-launcher-macos image is built
+# This is needed because KubeVirt references the image via annotation
+k8s_yaml(blob("""
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: virt-launcher-macos-dummy
+  namespace: {}
+spec:
+  completions: 0
+  template:
+    spec:
+      containers:
+      - name: dummy
+        image: {}
+        command: ["/bin/false"]
+      restartPolicy: Never
+""".format(k8s_namespace, virt_launcher_macos_image)))
+
 # Configure individual k8s resources
+k8s_resource(
+    'virt-launcher-macos-dummy',
+    labels=['infrastructure'],
+    resource_deps=[]
+)
+
 k8s_resource(
     'legacy-use-database',
     labels=['database']
