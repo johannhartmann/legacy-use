@@ -32,6 +32,11 @@ declare -A VMS=(
     ["macos-mojave"]="legacy-use-macos-mojave-containerdisk"
 )
 
+# Driver disk definitions
+declare -A DRIVER_DISKS=(
+    ["windows-xp-driver"]="legacy-use-windows-xp-driver-disk"
+)
+
 log() {
     echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"
 }
@@ -77,8 +82,8 @@ build_vm_image() {
     
     log "Building ${image_name}..."
     
-    # Check if qcow2 file exists
-    if ! check_image_exists "$vm_dir"; then
+    # Check if qcow2 file exists (skip for driver disks)
+    if [[ ! "$vm_dir" =~ -driver$ ]] && ! check_image_exists "$vm_dir"; then
         return 1
     fi
     
@@ -198,6 +203,24 @@ main() {
         cd "$SCRIPT_DIR"
     fi
     
+    # Build driver disks
+    echo
+    log "Building driver disk images..."
+    for driver_dir in "${!DRIVER_DISKS[@]}"; do
+        log "Processing driver disk: $driver_dir"
+        if [ -d "${SCRIPT_DIR}/${driver_dir}" ]; then
+            if build_vm_image "$driver_dir" "${DRIVER_DISKS[$driver_dir]}"; then
+                ((built++))
+                log "Successfully built and pushed $driver_dir driver disk"
+            else
+                ((failed++))
+                warning "Failed to build/push ${driver_dir} driver disk"
+            fi
+        else
+            warning "Directory ${driver_dir} not found, skipping"
+        fi
+    done
+    
     echo
     echo "========================================"
     if [ $failed -eq 0 ]; then
@@ -210,6 +233,17 @@ main() {
     log "Images in registry:"
     for vm_dir in "${!VMS[@]}"; do
         local image_name="${VMS[$vm_dir]}"
+        if [[ "$REGISTRY" == *"mayflower"* ]]; then
+            echo "  - ${REGISTRY}/${REGISTRY_PROJECT}/${image_name}:latest"
+        else
+            echo "  - ${REGISTRY}/${image_name}:latest"
+        fi
+    done
+    
+    echo
+    log "Driver disks in registry:"
+    for driver_dir in "${!DRIVER_DISKS[@]}"; do
+        local image_name="${DRIVER_DISKS[$driver_dir]}"
         if [[ "$REGISTRY" == *"mayflower"* ]]; then
             echo "  - ${REGISTRY}/${REGISTRY_PROJECT}/${image_name}:latest"
         else

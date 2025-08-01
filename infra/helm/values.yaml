@@ -416,6 +416,11 @@ windowsXpKubevirt:
     image: "registry.git.mayflower.de/legacy-use/legacy-use/legacy-use-windows-xp-containerdisk:latest"
     pullPolicy: "IfNotPresent"
   
+  # Driver disk configuration (Windows XP virtio drivers)
+  driverDisk:
+    image: "registry.git.mayflower.de/legacy-use/legacy-use/legacy-use-windows-xp-driver-disk:latest"
+    pullPolicy: "IfNotPresent"
+  
   
   # Disk configuration
   # Option 1: Use ephemeral disk (creates new disk for each VM instance)
