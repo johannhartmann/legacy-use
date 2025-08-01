@@ -1,7 +1,5 @@
-FROM quay.io/kubevirt/container-disk-v1alpha:latest
+FROM scratch
 
-# Copy the Windows XP driver floppy disk image
-COPY xp_q35_x64.img /disk/
-
-# KubeVirt expects the disk image to be named 'disk.img'
-RUN mv /disk/xp_q35_x64.img /disk/disk.img
+# Add the floppy disk image directly
+# For floppy disks, KubeVirt mounts the raw image file
+ADD xp_q35_x64.img /disk.img
