@@ -80,7 +80,7 @@ const JobsSection = ({
               <ListItemText
                 primary={job.api_name}
                 secondary={
-                  <>
+                  <Box component="span">
                     <Typography component="span" variant="body2" color="textSecondary">
                       Created: {formatDate(job.created_at)}
                     </Typography>
@@ -91,8 +91,9 @@ const JobsSection = ({
                       color={getStatusColor(job.status)}
                       sx={{ mt: 1 }}
                     />
-                  </>
+                  </Box>
                 }
+                secondaryTypographyProps={{ component: 'div' }}
               />
               <ListItemSecondaryAction>
                 <Tooltip title="View Job Details">
@@ -218,7 +219,7 @@ const JobsSection = ({
               <ListItemText
                 primary={job.api_name}
                 secondary={
-                  <>
+                  <Box component="span">
                     <Typography component="span" variant="body2" color="textSecondary">
                       Created: {formatDate(job.created_at)}
                     </Typography>
@@ -229,8 +230,9 @@ const JobsSection = ({
                       color={getStatusColor(job.status)}
                       sx={{ mt: 1 }}
                     />
-                  </>
+                  </Box>
                 }
+                secondaryTypographyProps={{ component: 'div' }}
               />
               <ListItemSecondaryAction>
                 <Tooltip title="View Job Details">
